@@ -1,65 +1,79 @@
-"use client";
+// app/page.tsx
+import Link from "next/link";
+import FlowBackground from "./components/FlowBackGround";
+import CTAButtons from "./components/CTAButtons";
+import Image from "next/image";
 
-import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
-
-type User = { id: string; email: string; name?: string | null; role: string };
-
-export default function Home() {
-  const { status, data: session } = useSession();
-  const [users, setUsers] = useState<User[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (status !== "authenticated") return; // 👈 no llames hasta tener sesión
-
-    const load = async () => {
-      setError(null);
-      try {
-        const res = await fetch("/api/users", { headers: { Accept: "application/json" } });
-
-        if (!res.ok) {
-          const text = await res.text(); // puede traer {"error":"Unauthorized"} o HTML si algo raro pasa
-          setError(`/api/users ${res.status}: ${text.slice(0, 120)}`);
-          return;
-        }
-
-        const ct = res.headers.get("content-type") || "";
-        if (!ct.includes("application/json")) {
-          const text = await res.text();
-          setError(`Respuesta no-JSON: ${text.slice(0, 120)}`);
-          return;
-        }
-
-        const data = await res.json();
-        setUsers(data.items ?? []);
-      } catch (e: any) {
-        setError(e.message || "Error de red");
-      }
-    };
-
-    load();
-  }, [status]);
-
-  if (status === "loading") {
-    return <main className="p-6">Cargando sesión…</main>;
-  }
-  if (status === "unauthenticated") {
-    return <main className="p-6">Inicia sesión para continuar.</main>;
-  }
-
+export default async function Landing() {
   return (
-    <main className="p-6">
-      <h1 className="text-xl font-bold mb-4">Usuarios</h1>
-      {error && <p className="text-red-600 text-sm mb-2">{error}</p>}
+    <main className="min-h-dvh bg-[#0D1321] text-white relative overflow-hidden">
+      <FlowBackground />
 
-      <ul className="space-y-2">
-        {users.map((u) => (
-          <li key={u.id} className="border rounded p-2">
-            <b>{u.name || "Sin nombre"}</b> — {u.email} ({u.role})
-          </li>
-        ))}
-      </ul>
+      <section className="relative z-10 mx-auto max-w-7xl px-6 py-20 grid gap-12 md:grid-cols-2 items-center">
+        {/* Izquierda */}
+        <div>
+
+          <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
+            Transforma tu código en{" "}
+            <span className="bg-gradient-to-r from-[#6a3df5] to-[#1ea1ff] bg-clip-text text-transparent">
+              diagramas de flujo
+            </span>
+          </h1>
+
+          <p className="mt-5 text-[#E3E6EB]/80 max-w-prose">
+            Visualiza la lógica del programa con facilidad.
+          </p>
+
+          <CTAButtons />
+        </div>
+
+        {/* Derecha: imagen integrada “sin fondo” sobre los efectos */}
+        <div className="relative">
+          {/* Glow suave detrás para integrar con el fondo */}
+          <div className="absolute -right-10 -bottom-10 h-40 w-40 rounded-full blur-3xl bg-[#22D2A0]/30" />
+
+          <Image
+            src="/codigoadiagrama.png" // <-- coloca aquí la imagen que me enviaste
+            alt="De código a diagrama de flujo"
+            width={900}
+            height={900}
+            priority
+            className={[
+              // Ajuste responsivo
+              "w-full h-auto select-none pointer-events-none",
+              // Hace que el negro/fondo oscuro desaparezca y deje ver los efectos detrás
+              "mix-blend-lighten",
+              // Glow sutil
+              "[filter:drop-shadow(0_10px_30px_rgba(34,210,160,0.25))]",
+            ].join(" ")}
+          />
+        </div>
+      </section>
+
+      <footer className="mt-10 text-center text-white/60 text-sm w-full pb-4">
+        © {new Date().getFullYear()} CodeFlow. Todos los derechos reservados.
+      </footer>
     </main>
+  );
+}
+
+function Row({
+  label,
+  value,
+  dim,
+}: {
+  label: string;
+  value: string;
+  dim?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center justify-between rounded-xl px-4 py-3 border ${
+        dim ? "border-white/5 bg-white/[0.03]" : "border-white/10 bg-white/10"
+      }`}
+    >
+      <span className="font-semibold text-[#22D2A0]">{label}</span>
+      <span className="text-[#E3E6EB]">{value}</span>
+    </div>
   );
 }
