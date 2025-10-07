@@ -1,7 +1,7 @@
 // app/page.tsx
 import Link from "next/link";
-import FlowBackground from "./components/FlowBackGround";
-import CTAButtons from "./components/CTAButtons";
+import FlowBackground from "../components/FlowBackGround";
+import CTAButtons from "../components/CTAButtons";
 import Image from "next/image";
 
 export default async function Landing() {
