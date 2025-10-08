@@ -23,7 +23,7 @@ export default function LoginPage() {
       email,
       password,
       redirect: false,
-      callbackUrl: "/",
+      callbackUrl: "/dashboard",
     });
 
     setLoading(false);
@@ -123,7 +123,7 @@ export default function LoginPage() {
             {/* Botón Google (quedará listo para cuando configures el provider) */}
             <button
               type="button"
-              onClick={() => signIn("google", { callbackUrl: "/" })}
+              onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
               className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition"
             >
               {/* ícono Google */}

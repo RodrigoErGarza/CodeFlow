@@ -54,6 +54,19 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      // URL absoluta del mismo origen -> respétala
+      try {
+        const u = new URL(url);
+        if (u.origin === baseUrl) return u.toString();
+        return baseUrl; // origen externo? bloquear
+      } catch {
+        // URL relativa -> respétala (permite callbackUrl="/dashboard" o "/login")
+        if (url.startsWith("/")) return baseUrl + url;
+        return baseUrl;
+      }
+    },
+
     async jwt({ token, user }) {
       // en login, 'user' viene definido: cargamos rol desde BD
       if (user) {
