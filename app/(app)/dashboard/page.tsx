@@ -1,4 +1,10 @@
-export default function DashboardPage({ user }: { user?: { name?: string | null } }) {
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+
+export default async function DashboardPage() {
+  const session = await getServerSession(authOptions);
+  const user = session?.user;
+
   return (
     <div className="min-h-screen flex flex-col">
       <div className="flex-1 space-y-6 px-4 pt-8">
@@ -13,8 +19,8 @@ export default function DashboardPage({ user }: { user?: { name?: string | null 
 
           <Card title="Aprendizaje">
             <div className="space-y-2 text-sm">
-              <Button> Estructuras de control </Button>
-              <Button> Ver Tutorial </Button>
+              <Button>Estructuras de control</Button>
+              <Button>Ver Tutorial</Button>
             </div>
           </Card>
 
@@ -29,9 +35,9 @@ export default function DashboardPage({ user }: { user?: { name?: string | null 
           </Card>
           <Card title="Acciones rápidas">
             <div className="flex flex-wrap gap-3">
-              <Button> Nuevo flujo </Button>
-              <Button> Mis proyectos </Button>
-              <Button> Retos </Button>
+              <Button>Nuevo flujo</Button>
+              <Button>Mis proyectos</Button>
+              <Button>Retos</Button>
             </div>
           </Card>
         </div>

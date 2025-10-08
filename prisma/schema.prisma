@@ -18,16 +18,34 @@ enum Role {
 
 // === MODELS ===
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   name         String?
-  role         Role     @default(STUDENT)
+  role         Role      @default(STUDENT)
   passwordHash String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  accounts Account[]
-  sessions Session[]
+  accounts     Account[]
+  sessions     Session[]
+
+  // LADO INVERSO
+  snippets     Snippet[]
+}
+
+model Snippet {
+  id        String   @id @default(cuid())
+  title     String
+  code      String
+  language  String
+  userId    String
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Account {
@@ -66,12 +84,11 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-
 model PasswordResetToken {
-  id         String   @id @default(cuid())
-  email      String
-  tokenHash  String   @unique
-  expiresAt  DateTime
-  usedAt     DateTime?
-  createdAt  DateTime @default(now())
+  id        String    @id @default(cuid())
+  email     String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 }
