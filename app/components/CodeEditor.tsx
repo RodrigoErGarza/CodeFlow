@@ -44,10 +44,10 @@ export default function CodeEditor({
         <select
           value={lang}
           onChange={(e) => setLang(e.target.value as LangKey)}
-          className="rounded-md border border-white/10 bg-white/5 px-2 py-1"
+          className="rounded-md border border-white/10 bg-[#181A20] text-white px-2 py-1"
         >
           {Object.keys(langLabel).map((k) => (
-            <option key={k} value={k}>
+            <option key={k} value={k} className="bg-[#181A20] text-white">
               {langLabel[k as LangKey]}
             </option>
           ))}

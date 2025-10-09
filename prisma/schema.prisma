@@ -18,35 +18,38 @@ enum Role {
 
 // === MODELS ===
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id           String   @id @default(cuid())
+  email        String   @unique
   name         String?
-  role         Role      @default(STUDENT)
+  role         Role     @default(STUDENT)
   passwordHash String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  accounts     Account[]
-  sessions     Session[]
-
-  // LADO INVERSO
-  snippets     Snippet[]
+  accounts Account[]
+  sessions Session[]
+  snippets Snippet[]
 }
 
 model Snippet {
-  id        String   @id @default(cuid())
-  title     String
-  code      String
-  language  String
-  userId    String
+  id             String    @id @default(cuid())
+  title          String
+  code           String
+  language       String
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isPublic       Boolean   @default(false)
+  tags           String[]
+  deletedAt      DateTime?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // 👇 contador simple que el API incrementa en cada update
+  snippetVersion Int       @default(1)
 
-  @@index([userId])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }
+
 
 model Account {
   id                String  @id @default(cuid())
