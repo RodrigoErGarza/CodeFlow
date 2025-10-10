@@ -60,22 +60,26 @@ export async function PUT(req: Request, { params }: Ctx) {
   return NextResponse.json({ item: updated });
 }
 
-export async function DELETE(_req: Request, { params }: Ctx) {
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const hard = new URL(req.url).searchParams.get("hard") === "true";
+
+  if (hard) {
+    const res = await prisma.snippet.deleteMany({
+      where: { id: params.id, userId: session.user.id },
+    });
+    if (res.count === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ ok: true, hard: true });
   }
 
-  const exists = await prisma.snippet.findFirst({
+  const res = await prisma.snippet.updateMany({
     where: { id: params.id, userId: session.user.id, deletedAt: null },
-    select: { id: true },
+    data: { deletedAt: new Date() },
   });
-  if (!exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  await prisma.snippet.update({
-    where: { id: params.id },
-    data: { deletedAt: new Date() }, // borrado suave
-  });
+  if (res.count === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   return NextResponse.json({ ok: true });
 }
+
