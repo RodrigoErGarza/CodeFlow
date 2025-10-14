@@ -1,6 +1,9 @@
 "use client";
 import CodeEditor from "@/app/components/CodeEditor";
+import FlowCanvas, { type FlowGraph } from "@/app/components/FlowCanvas";
 import { useState, useRef, useEffect } from "react";
+import { layoutWithELK } from "@/lib/elk";
+import { toPng } from "html-to-image";
 
 export default function EditorPage() {
   return (
@@ -12,7 +15,6 @@ export default function EditorPage() {
 }
 
 // ----------------------- Client shell -----------------------
-
 
 type LangKey = "python" | "java" | "pseint";
 type Item = { id: string; title: string; language: string; updatedAt?: string };
@@ -39,7 +41,15 @@ export function ClientEditorShell() {
   const [dirty, setDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
-  // --------- helpers ----------
+  // pestaña y grafo
+  const [tab, setTab] = useState<"code" | "diagram">("code");
+  const [graph, setGraph] = useState<FlowGraph | null>(null);
+  const [compileError, setCompileError] = useState<string | null>(null);
+
+  // refs para export/import
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
   function showMsg(text: string) {
     setMsg(text);
     setTimeout(() => setMsg(null), 1800);
@@ -67,7 +77,6 @@ export function ClientEditorShell() {
     setSaving(true);
     const nowIso = new Date().toISOString();
 
-    // Optimista: aplica cambios en UI antes de ir al servidor
     if (selectedId) {
       setItems((prev) =>
         prev.map((it) =>
@@ -75,18 +84,13 @@ export function ClientEditorShell() {
         )
       );
     } else {
-      // crear “fantasma” mientras llega el id real
       const tempId = `temp-${Date.now()}`;
-      setItems((prev) => [
-        { id: tempId, title, language: lang, updatedAt: nowIso },
-        ...prev,
-      ]);
+      setItems((prev) => [{ id: tempId, title, language: lang, updatedAt: nowIso }, ...prev]);
       setSelectedId(tempId);
     }
 
     try {
       if (!selectedId || selectedId.startsWith("temp-")) {
-        // POST (crear)
         const res = await fetch("/api/snippets", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -94,18 +98,12 @@ export function ClientEditorShell() {
         });
         if (!res.ok) throw new Error("No se pudo crear");
 
-        const data = await res.json(); // { id, ... }
+        const data = await res.json();
         const realId: string = data?.item?.id || data?.id;
 
-        // Reemplaza temp-id por el real
-        setItems((prev) =>
-          prev.map((it) =>
-            it.id === selectedId ? { ...it, id: realId } : it
-          )
-        );
+        setItems((prev) => prev.map((it) => (it.id === selectedId ? { ...it, id: realId } : it)));
         setSelectedId(realId);
       } else {
-        // PUT (actualizar)
         const res = await fetch(`/api/snippets/${selectedId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -119,17 +117,14 @@ export function ClientEditorShell() {
       showMsg("Guardado ✅");
     } catch (e: any) {
       showMsg(e.message || "Error al guardar");
-      // opcional: refetch para reconciliar en caso de error
       fetchItems();
     } finally {
       setSaving(false);
     }
   }
 
-  // Debounce: guarda 600 ms después de dejar de teclear/cambiar
   const debouncedPersist = useDebouncedCallback(persist, 600);
 
-  // Marca como sucio y dispara autosave por cambios
   useEffect(() => {
     if (!title.trim() && !code.trim()) return;
     setDirty(true);
@@ -137,7 +132,6 @@ export function ClientEditorShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, code, lang]);
 
-  // Aviso si hay cambios sin guardar al cerrar pestaña
   useEffect(() => {
     function onBeforeUnload(e: BeforeUnloadEvent) {
       if (!dirty) return;
@@ -161,6 +155,8 @@ export function ClientEditorShell() {
         setCode(data.item.code || "");
         setDirty(false);
         setLastSavedAt(data.item.updatedAt || null);
+        setGraph(null);
+        setCompileError(null);
       }
     } finally {
       setLoading(false);
@@ -175,12 +171,13 @@ export function ClientEditorShell() {
     setCode("");
     setDirty(false);
     setLastSavedAt(null);
+    setGraph(null);
+    setCompileError(null);
   }
 
   // --------- eliminar ----------
   async function deleteItem(id: string) {
     if (!confirm("¿Eliminar snippet?")) return;
-    // Optimista: quítalo de la lista ya
     setItems((prev) => prev.filter((it) => it.id !== id));
     if (id === selectedId) newSnippet();
 
@@ -190,10 +187,136 @@ export function ClientEditorShell() {
       showMsg("Eliminado 🗑️");
     } catch (e: any) {
       showMsg(e.message || "Error al eliminar");
-      // Recupera la lista si hubo error
       fetchItems();
     }
   }
+
+  // --------- compilar a grafo + LAYOUT ELK ----------
+  async function compileToGraph() {
+    setCompileError(null);
+    try {
+      const res = await fetch("/api/flow/compile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language: lang, code }),
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(t || "Error al compilar");
+      }
+      const raw = (await res.json()) as FlowGraph;
+
+      const laid = await layoutWithELK(raw, { direction: "DOWN" });
+      setGraph(laid);
+    } catch (e: any) {
+      setGraph(null);
+      setCompileError(e.message || "Error al compilar");
+    }
+  }
+
+  // Reaplicar layout al grafo actual
+  async function relayoutGraph() {
+    if (!graph) return;
+    const laid = await layoutWithELK(graph, { direction: "DOWN" });
+    setGraph(laid);
+  }
+
+  // ---------------- EXPORT/IMPORT helpers ----------------
+  function download(blobOrDataUrl: Blob | string, filename: string) {
+    const a = document.createElement("a");
+    if (typeof blobOrDataUrl === "string") {
+      a.href = blobOrDataUrl;
+    } else {
+      a.href = URL.createObjectURL(blobOrDataUrl);
+    }
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    if (typeof blobOrDataUrl !== "string") {
+      setTimeout(() => URL.revokeObjectURL(a.href), 0);
+    }
+  }
+
+  // Exportar PNG del contenedor del diagrama
+  async function exportPNG() {
+    if (!canvasRef.current) return;
+
+    // Oculta momentáneamente minimap/controles para no exportarlos
+    const toHide = Array.from(
+      canvasRef.current.querySelectorAll(".react-flow__minimap, .react-flow__controls")
+    ) as HTMLElement[];
+    toHide.forEach((el) => (el.style.visibility = "hidden"));
+
+    try {
+      const dataUrl = await toPng(canvasRef.current, {
+        cacheBust: true,
+        backgroundColor: "#0D1321",
+        skipFonts: true, // evita logs por @font-face
+        filter: (node) => {
+          const el = node as HTMLElement;
+          if (!el) return true;
+          if (el.classList?.contains("react-flow__minimap")) return false;
+          if (el.classList?.contains("react-flow__controls")) return false;
+          return true;
+        },
+      });
+      download(dataUrl, `${title || "diagrama"}.png`);
+    } finally {
+      toHide.forEach((el) => (el.style.visibility = ""));
+    }
+  }
+
+  // Exportar SVG (serializando el <svg> de React Flow)
+  function exportSVG() {
+    if (!canvasRef.current) return;
+    const svg = canvasRef.current.querySelector("svg");
+    if (!svg) return;
+
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+
+    const xml = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([`<?xml version="1.0" encoding="UTF-8"?>\n${xml}`], {
+      type: "image/svg+xml;charset=utf-8",
+    });
+    download(blob, `${title || "diagrama"}.svg`);
+  }
+
+  // Exportar JSON del grafo
+  function exportJSON() {
+    if (!graph) return;
+    const text = JSON.stringify(graph, null, 2);
+    const blob = new Blob([text], { type: "application/json" });
+    download(blob, `${title || "diagrama"}.json`);
+  }
+
+  // Importar JSON (restaura grafo y aplica layout opcional)
+  async function importJSON(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as FlowGraph;
+      // opcional: asegurar layout
+      const laid = await layoutWithELK(parsed, { direction: "DOWN" });
+      setGraph(laid);
+      setTab("diagram");
+      showMsg("Diagrama importado ✅");
+    } catch {
+      showMsg("Archivo JSON inválido");
+    } finally {
+      // permite volver a seleccionar el mismo archivo si el usuario quiere
+      if (importInputRef.current) importInputRef.current.value = "";
+    }
+  }
+
+  // Auto-compila al ir a la pestaña de diagrama
+  useEffect(() => {
+    if (tab === "diagram") compileToGraph();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   return (
     <div className="grid grid-cols-12 gap-4">
@@ -242,7 +365,7 @@ export function ClientEditorShell() {
         </div>
       </aside>
 
-      {/* Editor */}
+      {/* Área principal */}
       <section className="col-span-9 space-y-3">
         <div className="flex flex-wrap gap-2 items-center">
           <input
@@ -269,17 +392,98 @@ export function ClientEditorShell() {
               : "Listo"}
           </span>
 
+          {/* Pestañas */}
+          <div className="ml-auto flex gap-1 rounded-lg border border-white/10 p-1 bg-white/5">
+            <button
+              onClick={() => setTab("code")}
+              className={`px-3 py-1 rounded ${tab === "code" ? "bg-white/15" : "hover:bg-white/10"}`}
+            >
+              Código
+            </button>
+            <button
+              onClick={() => setTab("diagram")}
+              className={`px-3 py-1 rounded ${tab === "diagram" ? "bg-white/15" : "hover:bg-white/10"}`}
+            >
+              Diagrama
+            </button>
+          </div>
+
+          {tab === "diagram" && (
+            <>
+              <button
+                onClick={compileToGraph}
+                className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20"
+              >
+                Actualizar diagrama
+              </button>
+              <button
+                onClick={relayoutGraph}
+                className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20"
+                disabled={!graph}
+              >
+                Reordenar diagrama
+              </button>
+
+              {/* Export/Import */}
+              <button
+                onClick={exportPNG}
+                className="px-3 py-2 rounded bg-gradient-to-r from-indigo-500 to-blue-500 text-white"
+                disabled={!graph}
+              >
+                PNG
+              </button>
+              <button
+                onClick={exportSVG}
+                className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20"
+                disabled={!graph}
+              >
+                SVG
+              </button>
+              <button
+                onClick={exportJSON}
+                className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20"
+                disabled={!graph}
+              >
+                JSON
+              </button>
+              <button
+                onClick={() => importInputRef.current?.click()}
+                className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20"
+              >
+                Importar JSON
+              </button>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept="application/json"
+                hidden
+                onChange={importJSON}
+              />
+            </>
+          )}
+
           {msg && <span className="text-sm opacity-80">{msg}</span>}
         </div>
 
-        <CodeEditor
-          initialCode={code}
-          initialLang={lang}
-          onChange={(c, l) => {
-            setCode(c);
-            setLang(l);
-          }}
-        />
+        {tab === "code" ? (
+          <CodeEditor
+            initialCode={code}
+            initialLang={lang}
+            onChange={(c, l) => {
+              setCode(c);
+              setLang(l as LangKey);
+            }}
+          />
+        ) : (
+          <>
+            {compileError && <div className="text-sm text-red-400">{compileError}</div>}
+
+            {/* Contenedor del diagrama para exportar */}
+            <div ref={canvasRef} className="rounded-xl border border-white/10 overflow-hidden">
+              <FlowCanvas graph={graph} />
+            </div>
+          </>
+        )}
       </section>
     </div>
   );
