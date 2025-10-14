@@ -1,95 +1,57 @@
+// app/api/snippets/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-/**
- * GET /api/snippets
- * Query params:
- *  - q: string (busca en título y código)
- *  - language: "python"|"java"|"pseint"
- *  - tag: string (filtra snippets que contengan ese tag)
- *  - isPublic: "true" | "false"
- *  - page: number (>=1)       default: 1
- *  - limit: number (1..100)   default: 20
- *  - sort: "updated" | "created" | "title" (default "updated")
- *  - dir: "asc" | "desc" (default "desc")
- */
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const url = new URL(req.url);
-  const q = (url.searchParams.get("q") || "").trim();
-  const language = url.searchParams.get("language") || undefined;
-  const tag = url.searchParams.get("tag") || undefined;
-
-  const isPublicParam = url.searchParams.get("isPublic");
-  const isPublic =
-    isPublicParam === "true" ? true : isPublicParam === "false" ? false : undefined;
-
-  const page = Math.max(parseInt(url.searchParams.get("page") || "1", 10) || 1, 1);
-  const limitRaw = parseInt(url.searchParams.get("limit") || "20", 10) || 20;
-  const limit = Math.min(Math.max(limitRaw, 1), 100);
+  const { searchParams } = new URL(req.url);
+  const q = (searchParams.get("q") || "").trim();
+  const language = (searchParams.get("language") || "").trim(); // "python" | "java" | "pseint" | ""
+  const page = Math.max(1, Number(searchParams.get("page") || 1));
+  const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 10)));
   const skip = (page - 1) * limit;
 
-  const sort = url.searchParams.get("sort") || "updated";
-  const dir = (url.searchParams.get("dir") || "desc") as "asc" | "desc";
-
-  // Ordenamiento seguro
-  const orderBy =
-    sort === "title"
-      ? { title: dir }
-      : sort === "created"
-      ? { createdAt: dir }
-      : { updatedAt: dir }; // "updated" por defecto
-
-  // Filtros base: mis snippets no borrados
   const where: any = {
     userId: session.user.id,
     deletedAt: null,
   };
-
-  if (language) where.language = language;
-  if (typeof isPublic === "boolean") where.isPublic = isPublic;
-
-  // Si viene un tag, buscamos que el array lo contenga
-  if (tag) where.tags = { has: tag };
-
-  // Búsqueda textual en título o código (simple)
   if (q) {
-    where.OR = [
-      { title: { contains: q, mode: "insensitive" } },
-      { code: { contains: q, mode: "insensitive" } },
-    ];
+    where.title = { contains: q, mode: "insensitive" };
+  }
+  if (language) {
+    where.language = language;
   }
 
-  // total para paginación
-  const total = await prisma.snippet.count({ where });
-
-  const items = await prisma.snippet.findMany({
-    where,
-    orderBy,
-    skip,
-    take: limit,
-    select: {
-      id: true,
-      title: true,
-      language: true,
-      updatedAt: true,
-      isPublic: true,
-      tags: true,
-    },
-  });
+  const [items, total] = await Promise.all([
+    prisma.snippet.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      skip,
+      take: limit,
+      select: {
+        id: true,
+        title: true,
+        language: true,
+        updatedAt: true,
+        isPublic: true,
+        tags: true,
+      },
+    }),
+    prisma.snippet.count({ where }),
+  ]);
 
   return NextResponse.json({
     items,
-    total,
     page,
     limit,
-    hasNext: skip + items.length < total,
+    total,
+    totalPages: Math.ceil(total / limit),
   });
 }
 

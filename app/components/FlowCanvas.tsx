@@ -1,41 +1,60 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo } from "react";
 import ReactFlow, {
   Background,
   Controls,
   MiniMap,
   useEdgesState,
   useNodesState,
+  useReactFlow,
+  ReactFlowProvider,
   Edge,
   Node,
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-/** Estructura que devuelve tu /api/flow/compile */
+/** Estructura que devuelve /api/flow/compile */
 export type FlowGraph = {
   nodes: Array<{ id: string; type?: string; label?: string; position?: { x: number; y: number } }>;
-  edges: Array<{ id: string;  source: string; target: string; label?: string }>;
+  edges: Array<{ id: string; source: string; target: string; label?: string }>;
 };
 
 type Props = {
   graph?: FlowGraph | null;
 };
 
-export default function FlowCanvas({ graph }: Props) {
-  // Si no hay posiciones, creamos un layout simple vertical
+/** ---- Componente público que exportas ---- */
+const FlowCanvas = forwardRef(function FlowCanvas({ graph }: Props, ref) {
+  return (
+    <div className="h-[70vh] w-full rounded-xl overflow-hidden border border-white/10">
+      {/* Provider AQUÍ para habilitar useReactFlow en el hijo */}
+      <ReactFlowProvider>
+        <InnerCanvas graph={graph} ref={ref as any} />
+      </ReactFlowProvider>
+    </div>
+  );
+});
+
+export default FlowCanvas;
+
+/** ---- Hijo que sí puede usar useReactFlow() ---- */
+const InnerCanvas = forwardRef(function InnerCanvas(
+  { graph }: Props,
+  ref: React.Ref<{ fitView: () => void }>
+) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node[]>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([]);
+  const rf = useReactFlow();
 
   const laidOut = useMemo(() => {
     if (!graph) return { nodes: [], edges: [] };
 
-    // 1) Convertimos a formato ReactFlow
     const baseNodes: Node[] = graph.nodes.map((n, i) => ({
       id: n.id,
       type: "default",
       data: { label: n.label || n.type || n.id },
-      position: n.position ?? { x: 80, y: i * 120 }, // fallback: columnas simples
+      position: n.position ?? { x: 80, y: i * 120 }, // fallback simple
       style: styleForNode(n.type),
     }));
 
@@ -44,7 +63,7 @@ export default function FlowCanvas({ graph }: Props) {
       source: e.source,
       target: e.target,
       label: e.label,
-      animated: !!e.label && e.label.toLowerCase() === "sí", // ejemplo: animamos la rama 'Sí'
+      animated: !!e.label && e.label.toLowerCase() === "sí",
       style: { strokeWidth: 2 },
       labelBgPadding: [6, 3],
       labelBgBorderRadius: 4,
@@ -57,27 +76,37 @@ export default function FlowCanvas({ graph }: Props) {
   useEffect(() => {
     setNodes(laidOut.nodes);
     setEdges(laidOut.edges);
-  }, [laidOut, setNodes, setEdges]);
+    // Ajusta vista tras montar datos
+    const t = setTimeout(() => {
+      try {
+        rf.fitView({ padding: 0.2, includeHiddenNodes: true });
+      } catch {}
+    }, 0);
+    return () => clearTimeout(t);
+  }, [laidOut, setNodes, setEdges, rf]);
+
+  // Exponer fitView al padre (opcional)
+  useImperativeHandle(ref, () => ({
+    fitView: () => rf.fitView({ padding: 0.2, includeHiddenNodes: true }),
+  }));
 
   return (
-    <div className="h-[70vh] w-full rounded-xl overflow-hidden border border-white/10">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        fitView
-      >
-        <Background gap={16} />
-        <MiniMap
-          nodeStrokeColor={(n) => (n.style?.border as string) || "#666"}
-          nodeColor={(n) => (n.style?.background as string) || "#1f2937"}
-        />
-        <Controls />
-      </ReactFlow>
-    </div>
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      fitView
+    >
+      <Background gap={16} />
+      <MiniMap
+        nodeStrokeColor={(n) => (n.style?.border as string) || "#666"}
+        nodeColor={(n) => (n.style?.background as string) || "#1f2937"}
+      />
+      <Controls />
+    </ReactFlow>
   );
-}
+});
 
 function styleForNode(type?: string) {
   const base = {

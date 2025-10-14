@@ -1,9 +1,12 @@
 "use client";
 import CodeEditor from "@/app/components/CodeEditor";
-import FlowCanvas, { type FlowGraph } from "@/app/components/FlowCanvas";
+import FlowCanvas, { type FlowGraph, type FlowCanvasHandle } from "@/app/components/FlowCanvas";
 import { useState, useRef, useEffect } from "react";
 import { layoutWithELK } from "@/lib/elk";
 import { toPng } from "html-to-image";
+
+type LangKey = "python" | "java" | "pseint";
+type Item = { id: string; title: string; language: string; updatedAt?: string; isPublic?: boolean };
 
 export default function EditorPage() {
   return (
@@ -14,11 +17,6 @@ export default function EditorPage() {
   );
 }
 
-// ----------------------- Client shell -----------------------
-
-type LangKey = "python" | "java" | "pseint";
-type Item = { id: string; title: string; language: string; updatedAt?: string };
-
 function useDebouncedCallback<T extends (...args: any[]) => void>(fn: T, delay: number) {
   const ref = useRef<ReturnType<typeof setTimeout> | null>(null);
   return (...args: Parameters<T>) => {
@@ -28,26 +26,34 @@ function useDebouncedCallback<T extends (...args: any[]) => void>(fn: T, delay: 
 }
 
 export function ClientEditorShell() {
+  // snippet state
   const [code, setCode] = useState("");
   const [lang, setLang] = useState<LangKey>("python");
   const [title, setTitle] = useState("Mi snippet");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // list state
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [filterLang, setFilterLang] = useState<"" | LangKey>(""); // filtro listado
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [total, setTotal] = useState(0);
 
   // UI state
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
-
-  // pestaña y grafo
   const [tab, setTab] = useState<"code" | "diagram">("code");
-  const [graph, setGraph] = useState<FlowGraph | null>(null);
   const [compileError, setCompileError] = useState<string | null>(null);
+  const [compiling, setCompiling] = useState(false);
 
-  // refs para export/import
+  // graph & canvas
+  const [graph, setGraph] = useState<FlowGraph | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const flowRef = useRef<FlowCanvasHandle>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   function showMsg(text: string) {
@@ -55,37 +61,43 @@ export function ClientEditorShell() {
     setTimeout(() => setMsg(null), 1800);
   }
 
-  // --------- listado ----------
-  async function fetchItems() {
+  // ---------- listado con filtros/paginación ----------
+  async function fetchItems(opts?: { keepPage?: boolean }) {
     setLoading(true);
     try {
-      const res = await fetch("/api/snippets?q=&page=1&limit=50", { cache: "no-store" });
+      const _page = opts?.keepPage ? page : 1;
+      if (!opts?.keepPage) setPage(1);
+
+      const params = new URLSearchParams();
+      params.set("q", q);
+      params.set("page", String(_page));
+      params.set("limit", String(limit));
+      if (filterLang) params.set("language", filterLang);
+
+      const res = await fetch(`/api/snippets?` + params.toString(), { cache: "no-store" });
       const data = await res.json();
       setItems(Array.isArray(data.items) ? data.items : []);
+      setTotal(Number(data.total || 0));
     } finally {
       setLoading(false);
     }
   }
   useEffect(() => {
-    fetchItems();
-  }, []);
+    fetchItems({ keepPage: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, filterLang]); // q se maneja con botón "Buscar"
 
-  // --------- crear/actualizar (con guardado optimista) ----------
+  // ---------- crear/actualizar ----------
   async function persist() {
     if (!title.trim() || !code.trim()) return;
-
     setSaving(true);
     const nowIso = new Date().toISOString();
 
     if (selectedId) {
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === selectedId ? { ...it, title, language: lang, updatedAt: nowIso } : it
-        )
-      );
+      setItems(prev => prev.map(it => it.id === selectedId ? { ...it, title, language: lang, updatedAt: nowIso } : it));
     } else {
       const tempId = `temp-${Date.now()}`;
-      setItems((prev) => [{ id: tempId, title, language: lang, updatedAt: nowIso }, ...prev]);
+      setItems(prev => [{ id: tempId, title, language: lang, updatedAt: nowIso }, ...prev]);
       setSelectedId(tempId);
     }
 
@@ -97,11 +109,9 @@ export function ClientEditorShell() {
           body: JSON.stringify({ title, code, language: lang }),
         });
         if (!res.ok) throw new Error("No se pudo crear");
-
         const data = await res.json();
         const realId: string = data?.item?.id || data?.id;
-
-        setItems((prev) => prev.map((it) => (it.id === selectedId ? { ...it, id: realId } : it)));
+        setItems(prev => prev.map(it => it.id === selectedId ? { ...it, id: realId } : it));
         setSelectedId(realId);
       } else {
         const res = await fetch(`/api/snippets/${selectedId}`, {
@@ -111,20 +121,17 @@ export function ClientEditorShell() {
         });
         if (!res.ok) throw new Error("No se pudo actualizar");
       }
-
       setDirty(false);
       setLastSavedAt(new Date().toLocaleTimeString());
       showMsg("Guardado ✅");
     } catch (e: any) {
       showMsg(e.message || "Error al guardar");
-      fetchItems();
+      fetchItems({ keepPage: true });
     } finally {
       setSaving(false);
     }
   }
-
   const debouncedPersist = useDebouncedCallback(persist, 600);
-
   useEffect(() => {
     if (!title.trim() && !code.trim()) return;
     setDirty(true);
@@ -142,7 +149,7 @@ export function ClientEditorShell() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty]);
 
-  // --------- cargar uno ----------
+  // ---------- cargar uno ----------
   async function loadItem(id: string) {
     setLoading(true);
     try {
@@ -163,7 +170,7 @@ export function ClientEditorShell() {
     }
   }
 
-  // --------- nuevo ----------
+  // ---------- nuevo ----------
   function newSnippet() {
     setSelectedId(null);
     setTitle("Mi snippet");
@@ -175,25 +182,25 @@ export function ClientEditorShell() {
     setCompileError(null);
   }
 
-  // --------- eliminar ----------
+  // ---------- eliminar ----------
   async function deleteItem(id: string) {
     if (!confirm("¿Eliminar snippet?")) return;
-    setItems((prev) => prev.filter((it) => it.id !== id));
+    setItems(prev => prev.filter(it => it.id !== id));
     if (id === selectedId) newSnippet();
-
     try {
       const res = await fetch(`/api/snippets/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("No se pudo eliminar");
       showMsg("Eliminado 🗑️");
     } catch (e: any) {
       showMsg(e.message || "Error al eliminar");
-      fetchItems();
+      fetchItems({ keepPage: true });
     }
   }
 
-  // --------- compilar a grafo + LAYOUT ELK ----------
+  // ---------- compilar + layout ----------
   async function compileToGraph() {
     setCompileError(null);
+    setCompiling(true);
     try {
       const res = await fetch("/api/flow/compile", {
         method: "POST",
@@ -205,54 +212,73 @@ export function ClientEditorShell() {
         throw new Error(t || "Error al compilar");
       }
       const raw = (await res.json()) as FlowGraph;
-
       const laid = await layoutWithELK(raw, { direction: "DOWN" });
       setGraph(laid);
     } catch (e: any) {
       setGraph(null);
       setCompileError(e.message || "Error al compilar");
+    } finally {
+      setCompiling(false);
     }
   }
-
-  // Reaplicar layout al grafo actual
   async function relayoutGraph() {
     if (!graph) return;
     const laid = await layoutWithELK(graph, { direction: "DOWN" });
     setGraph(laid);
   }
 
-  // ---------------- EXPORT/IMPORT helpers ----------------
+  // ---------- público/compartir ----------
+  async function togglePublic() {
+    if (!selectedId) return;
+    const current = items.find(i => i.id === selectedId);
+    const next = !current?.isPublic;
+    // optimista
+    setItems(prev => prev.map(i => i.id === selectedId ? { ...i, isPublic: next } : i));
+    try {
+      const res = await fetch(`/api/snippets/${selectedId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPublic: next }),
+      });
+      if (!res.ok) throw new Error("No se pudo actualizar visibilidad");
+    } catch {
+      // revertir
+      setItems(prev => prev.map(i => i.id === selectedId ? { ...i, isPublic: !next } : i));
+      showMsg("No se pudo cambiar visibilidad");
+    }
+  }
+  function sharePublicLink() {
+    if (!selectedId) return;
+    const it = items.find(i => i.id === selectedId);
+    if (!it?.isPublic) {
+      showMsg("Pon el snippet en Público para compartir");
+      return;
+    }
+    const url = `${window.location.origin}/p/${selectedId}`;
+    navigator.clipboard.writeText(url);
+    showMsg("Link copiado 📋");
+  }
+
+  // ---------- export/import (PNG ya lo tienes) ----------
   function download(blobOrDataUrl: Blob | string, filename: string) {
     const a = document.createElement("a");
-    if (typeof blobOrDataUrl === "string") {
-      a.href = blobOrDataUrl;
-    } else {
-      a.href = URL.createObjectURL(blobOrDataUrl);
-    }
+    if (typeof blobOrDataUrl === "string") a.href = blobOrDataUrl;
+    else a.href = URL.createObjectURL(blobOrDataUrl);
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    if (typeof blobOrDataUrl !== "string") {
-      setTimeout(() => URL.revokeObjectURL(a.href), 0);
-    }
+    if (typeof blobOrDataUrl !== "string") setTimeout(() => URL.revokeObjectURL(a.href), 0);
   }
-
-  // Exportar PNG del contenedor del diagrama
   async function exportPNG() {
-    if (!canvasRef.current) return;
-
-    // Oculta momentáneamente minimap/controles para no exportarlos
-    const toHide = Array.from(
-      canvasRef.current.querySelectorAll(".react-flow__minimap, .react-flow__controls")
-    ) as HTMLElement[];
-    toHide.forEach((el) => (el.style.visibility = "hidden"));
-
+    if (!canvasRef.current || !graph || compileError) return;
+    const toHide = Array.from(canvasRef.current.querySelectorAll(".react-flow__minimap, .react-flow__controls")) as HTMLElement[];
+    toHide.forEach(el => (el.style.visibility = "hidden"));
     try {
       const dataUrl = await toPng(canvasRef.current, {
         cacheBust: true,
         backgroundColor: "#0D1321",
-        skipFonts: true, // evita logs por @font-face
+        skipFonts: true,
         filter: (node) => {
           const el = node as HTMLElement;
           if (!el) return true;
@@ -263,43 +289,31 @@ export function ClientEditorShell() {
       });
       download(dataUrl, `${title || "diagrama"}.png`);
     } finally {
-      toHide.forEach((el) => (el.style.visibility = ""));
+      toHide.forEach(el => (el.style.visibility = ""));
     }
   }
-
-  // Exportar SVG (serializando el <svg> de React Flow)
   function exportSVG() {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || !graph || compileError) return;
     const svg = canvasRef.current.querySelector("svg");
     if (!svg) return;
-
     const clone = svg.cloneNode(true) as SVGSVGElement;
     clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
     clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
-
     const xml = new XMLSerializer().serializeToString(clone);
-    const blob = new Blob([`<?xml version="1.0" encoding="UTF-8"?>\n${xml}`], {
-      type: "image/svg+xml;charset=utf-8",
-    });
+    const blob = new Blob([`<?xml version="1.0" encoding="UTF-8"?>\n${xml}`], { type: "image/svg+xml;charset=utf-8" });
     download(blob, `${title || "diagrama"}.svg`);
   }
-
-  // Exportar JSON del grafo
   function exportJSON() {
-    if (!graph) return;
-    const text = JSON.stringify(graph, null, 2);
-    const blob = new Blob([text], { type: "application/json" });
+    if (!graph || compileError) return;
+    const blob = new Blob([JSON.stringify(graph, null, 2)], { type: "application/json" });
     download(blob, `${title || "diagrama"}.json`);
   }
-
-  // Importar JSON (restaura grafo y aplica layout opcional)
   async function importJSON(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
       const text = await file.text();
       const parsed = JSON.parse(text) as FlowGraph;
-      // opcional: asegurar layout
       const laid = await layoutWithELK(parsed, { direction: "DOWN" });
       setGraph(laid);
       setTab("diagram");
@@ -307,29 +321,55 @@ export function ClientEditorShell() {
     } catch {
       showMsg("Archivo JSON inválido");
     } finally {
-      // permite volver a seleccionar el mismo archivo si el usuario quiere
       if (importInputRef.current) importInputRef.current.value = "";
     }
   }
 
-  // Auto-compila al ir a la pestaña de diagrama
+  // auto-compila al entrar a Diagrama
   useEffect(() => {
     if (tab === "diagram") compileToGraph();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
+  // paginación helpers
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const canPrev = page > 1;
+  const canNext = page < totalPages;
+
+  // snippet seleccionado (estado público)
+  const selected = selectedId ? items.find(i => i.id === selectedId) : null;
+
   return (
     <div className="grid grid-cols-12 gap-4">
       {/* Panel lateral */}
       <aside className="col-span-3 space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold">Mis snippets</h2>
+        <div className="flex items-center gap-2">
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar título…"
+            className="flex-1 px-3 py-2 rounded border border-white/10 bg-white/5"
+          />
           <button
-            className="text-sm px-2 py-1 rounded bg-white/10 hover:bg-white/20 border border-white/10"
-            onClick={fetchItems}
+            onClick={() => fetchItems({ keepPage: false })}
+            className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20"
           >
-            Recargar
+            Buscar
           </button>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <label className="text-sm opacity-80">Lenguaje:</label>
+          <select
+            value={filterLang}
+            onChange={(e) => setFilterLang(e.target.value as any)}
+            className="px-2 py-1 rounded border border-white/10 bg-white/5"
+          >
+            <option value="">Todos</option>
+            <option value="python">Python</option>
+            <option value="java">Java</option>
+            <option value="pseint">PSeInt</option>
+          </select>
         </div>
 
         <div className="rounded-xl border border-white/10 divide-y divide-white/10 overflow-hidden">
@@ -346,7 +386,7 @@ export function ClientEditorShell() {
             >
               <div className="min-w-0">
                 <div className="font-medium truncate">{it.title}</div>
-                <div className="opacity-60 text-xs truncate">{it.language}</div>
+                <div className="opacity-60 text-xs truncate">{it.language}{it.isPublic ? " • público" : ""}</div>
               </div>
               <button
                 className="text-xs opacity-70 hover:opacity-100"
@@ -360,8 +400,27 @@ export function ClientEditorShell() {
             </div>
           ))}
           {items.length === 0 && !loading && (
-            <div className="p-3 text-sm opacity-70">Aún no tienes snippets.</div>
+            <div className="p-3 text-sm opacity-70">Sin resultados.</div>
           )}
+        </div>
+
+        {/* paginación */}
+        <div className="flex items-center justify-between text-sm opacity-80">
+          <button
+            disabled={!canPrev}
+            onClick={() => canPrev && setPage(p => p - 1)}
+            className="px-2 py-1 border border-white/10 rounded disabled:opacity-40"
+          >
+            ← Anterior
+          </button>
+          <div>Página {page} / {totalPages}</div>
+          <button
+            disabled={!canNext}
+            onClick={() => canNext && setPage(p => p + 1)}
+            className="px-2 py-1 border border-white/10 rounded disabled:opacity-40"
+          >
+            Siguiente →
+          </button>
         </div>
       </aside>
 
@@ -381,88 +440,45 @@ export function ClientEditorShell() {
             Nuevo
           </button>
 
-          {/* Estado de guardado */}
           <span className="text-sm opacity-80">
-            {saving
-              ? "Guardando…"
-              : dirty
-              ? "Cambios sin guardar"
-              : lastSavedAt
-              ? `Guardado a las ${lastSavedAt}`
-              : "Listo"}
+            {saving ? "Guardando…" : dirty ? "Cambios sin guardar" : lastSavedAt ? `Guardado a las ${lastSavedAt}` : "Listo"}
           </span>
 
-          {/* Pestañas */}
-          <div className="ml-auto flex gap-1 rounded-lg border border-white/10 p-1 bg-white/5">
-            <button
-              onClick={() => setTab("code")}
-              className={`px-3 py-1 rounded ${tab === "code" ? "bg-white/15" : "hover:bg-white/10"}`}
-            >
-              Código
-            </button>
-            <button
-              onClick={() => setTab("diagram")}
-              className={`px-3 py-1 rounded ${tab === "diagram" ? "bg-white/15" : "hover:bg-white/10"}`}
-            >
-              Diagrama
-            </button>
-          </div>
-
-          {tab === "diagram" && (
-            <>
+          {/* Público / Compartir (si hay seleccionado) */}
+          {selected && (
+            <div className="ml-auto flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={!!selected.isPublic}
+                  onChange={togglePublic}
+                />
+                Público
+              </label>
               <button
-                onClick={compileToGraph}
+                onClick={sharePublicLink}
                 className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20"
               >
-                Actualizar diagrama
+                Compartir
               </button>
-              <button
-                onClick={relayoutGraph}
-                className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20"
-                disabled={!graph}
-              >
-                Reordenar diagrama
-              </button>
-
-              {/* Export/Import */}
-              <button
-                onClick={exportPNG}
-                className="px-3 py-2 rounded bg-gradient-to-r from-indigo-500 to-blue-500 text-white"
-                disabled={!graph}
-              >
-                PNG
-              </button>
-              <button
-                onClick={exportSVG}
-                className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20"
-                disabled={!graph}
-              >
-                SVG
-              </button>
-              <button
-                onClick={exportJSON}
-                className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20"
-                disabled={!graph}
-              >
-                JSON
-              </button>
-              <button
-                onClick={() => importInputRef.current?.click()}
-                className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20"
-              >
-                Importar JSON
-              </button>
-              <input
-                ref={importInputRef}
-                type="file"
-                accept="application/json"
-                hidden
-                onChange={importJSON}
-              />
-            </>
+            </div>
           )}
+        </div>
 
-          {msg && <span className="text-sm opacity-80">{msg}</span>}
+        {/* pestañas */}
+        <div className="flex gap-1 rounded-lg border border-white/10 p-1 bg-white/5">
+          <button
+            onClick={() => setTab("code")}
+            className={`px-3 py-1 rounded ${tab === "code" ? "bg-white/15" : "hover:bg-white/10"}`}
+          >
+            Código
+          </button>
+          <button
+            onClick={() => setTab("diagram")}
+            className={`px-3 py-1 rounded ${tab === "diagram" ? "bg-white/15" : "hover:bg-white/10"}`}
+          >
+            Diagrama
+          </button>
         </div>
 
         {tab === "code" ? (
@@ -476,15 +492,52 @@ export function ClientEditorShell() {
           />
         ) : (
           <>
-            {compileError && <div className="text-sm text-red-400">{compileError}</div>}
+            {/* feedback de compilación */}
+            {compiling && <div className="text-sm opacity-80">Compilando…</div>}
+            {compileError && <div className="text-sm text-red-400">No se pudo compilar: {compileError}</div>}
 
-            {/* Contenedor del diagrama para exportar */}
+            <div className="flex gap-2">
+              <button
+                onClick={compileToGraph}
+                className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20"
+              >
+                Actualizar diagrama
+              </button>
+              <button
+                onClick={() => flowRef.current?.fitView?.()}
+                className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20"
+                disabled={!graph}
+              >
+                Ajustar a pantalla
+              </button>
+              <button onClick={relayoutGraph} className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20" disabled={!graph}>
+                Reordenar
+              </button>
+              <button onClick={exportPNG} className="px-3 py-2 rounded bg-gradient-to-r from-indigo-500 to-blue-500 text-white" disabled={!graph || !!compileError}>
+                PNG
+              </button>
+              <button onClick={exportSVG} className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20" disabled={!graph || !!compileError}>
+                SVG
+              </button>
+              <button onClick={exportJSON} className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20" disabled={!graph || !!compileError}>
+                JSON
+              </button>
+              <button onClick={() => importInputRef.current?.click()} className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20">
+                Importar JSON
+              </button>
+              <input ref={importInputRef} type="file" accept="application/json" hidden onChange={importJSON} />
+            </div>
+
+            {/* Contenedor exportable */}
             <div ref={canvasRef} className="rounded-xl border border-white/10 overflow-hidden">
-              <FlowCanvas graph={graph} />
+              <FlowCanvas ref={flowRef} graph={graph} />
             </div>
           </>
         )}
       </section>
+
+      {/* mensajito */}
+      {msg && <div className="col-span-12 text-sm opacity-80">{msg}</div>}
     </div>
   );
 }
