@@ -55,6 +55,11 @@ export function ClientEditorShell() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const flowRef = useRef<FlowCanvasHandle>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const [isPublic, setIsPublic] = useState(false);
+
+  // 👇 NUEVO: selección en diagrama y rango a enfocar en el editor
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [focusRange, setFocusRange] = useState<{ start: number; end: number } | null>(null);
 
   function showMsg(text: string) {
     setMsg(text);
@@ -84,7 +89,7 @@ export function ClientEditorShell() {
   }
   useEffect(() => {
     fetchItems({ keepPage: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, filterLang]); // q se maneja con botón "Buscar"
 
   // ---------- crear/actualizar ----------
@@ -106,7 +111,7 @@ export function ClientEditorShell() {
         const res = await fetch("/api/snippets", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, code, language: lang }),
+          body: JSON.stringify({ title, code, language: lang, isPublic }),
         });
         if (!res.ok) throw new Error("No se pudo crear");
         const data = await res.json();
@@ -117,7 +122,7 @@ export function ClientEditorShell() {
         const res = await fetch(`/api/snippets/${selectedId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, code, language: lang }),
+          body: JSON.stringify({ title, code, language: lang, isPublic }),
         });
         if (!res.ok) throw new Error("No se pudo actualizar");
       }
@@ -162,6 +167,12 @@ export function ClientEditorShell() {
         setCode(data.item.code || "");
         setDirty(false);
         setLastSavedAt(data.item.updatedAt || null);
+        setIsPublic(!!data.item.isPublic);
+
+        // 👇 limpia selección/rango al cambiar de snippet
+        setSelectedNodeId(null);
+        setFocusRange(null);
+
         setGraph(null);
         setCompileError(null);
       }
@@ -180,6 +191,10 @@ export function ClientEditorShell() {
     setLastSavedAt(null);
     setGraph(null);
     setCompileError(null);
+
+    // 👇 limpia selección/rango
+    setSelectedNodeId(null);
+    setFocusRange(null);
   }
 
   // ---------- eliminar ----------
@@ -201,6 +216,11 @@ export function ClientEditorShell() {
   async function compileToGraph() {
     setCompileError(null);
     setCompiling(true);
+
+    // 👇 opcional: limpiar selección antes de re-renderizar grafo
+    setSelectedNodeId(null);
+    setFocusRange(null);
+
     try {
       const res = await fetch("/api/flow/compile", {
         method: "POST",
@@ -259,7 +279,7 @@ export function ClientEditorShell() {
     showMsg("Link copiado 📋");
   }
 
-  // ---------- export/import (PNG ya lo tienes) ----------
+  // ---------- export/import ----------
   function download(blobOrDataUrl: Blob | string, filename: string) {
     const a = document.createElement("a");
     if (typeof blobOrDataUrl === "string") a.href = blobOrDataUrl;
@@ -363,7 +383,7 @@ export function ClientEditorShell() {
           <select
             value={filterLang}
             onChange={(e) => setFilterLang(e.target.value as any)}
-            className="px-2 py-1 rounded border border-white/10 bg-white/5"
+            className="px-2 py-1 rounded border border-white/10  bg-black text-white"
           >
             <option value="">Todos</option>
             <option value="python">Python</option>
@@ -386,7 +406,10 @@ export function ClientEditorShell() {
             >
               <div className="min-w-0">
                 <div className="font-medium truncate">{it.title}</div>
-                <div className="opacity-60 text-xs truncate">{it.language}{it.isPublic ? " • público" : ""}</div>
+                <div className="opacity-60 text-xs truncate">
+                  {it.language}
+                  {it.isPublic ? " • público" : ""}
+                </div>
               </div>
               <button
                 className="text-xs opacity-70 hover:opacity-100"
@@ -485,6 +508,9 @@ export function ClientEditorShell() {
           <CodeEditor
             initialCode={code}
             initialLang={lang}
+            /* 👇 pasa el rango a resaltar en el editor */
+            // Si tu CodeEditor ya tipa focusRange, quita el "as any"
+            {...({ focusRange } as any)}
             onChange={(c, l) => {
               setCode(c);
               setLang(l as LangKey);
@@ -530,7 +556,20 @@ export function ClientEditorShell() {
 
             {/* Contenedor exportable */}
             <div ref={canvasRef} className="rounded-xl border border-white/10 overflow-hidden">
-              <FlowCanvas ref={flowRef} graph={graph} />
+              <FlowCanvas
+                ref={flowRef}
+                graph={graph}
+                /* 👇 resalta el nodo seleccionado */
+                selectedNodeId={selectedNodeId}
+                /* 👇 cuando hago click en un nodo, saltamos (opcional) al código y enfocamos rango */
+                onNodeClick={({ id, range }) => {
+                  setSelectedNodeId(id);
+                  if (range?.start != null && range?.end != null) {
+                    setTab("code");
+                    setFocusRange({ start: range.start, end: range.end });
+                  }
+                }}
+              />
             </div>
           </>
         )}

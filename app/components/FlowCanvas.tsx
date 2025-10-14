@@ -14,23 +14,41 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-/** Estructura que devuelve /api/flow/compile */
+/** ✅ Named export (lo usas en page.tsx) */
 export type FlowGraph = {
-  nodes: Array<{ id: string; type?: string; label?: string; position?: { x: number; y: number } }>;
+  nodes: Array<{
+    id: string;
+    type?: string;
+    label?: string;
+    position?: { x: number; y: number };
+    range?: { start: number; end: number }; // opcional
+  }>;
   edges: Array<{ id: string; source: string; target: string; label?: string }>;
 };
 
+/** ✅ Named export: lo usas para el ref en page.tsx */
+export type FlowCanvasHandle = { fitView: () => void };
+
 type Props = {
   graph?: FlowGraph | null;
+  onNodeClick?: (payload: { id: string; range?: { start: number; end: number } }) => void;
+  selectedNodeId?: string | null;
 };
 
-/** ---- Componente público que exportas ---- */
-const FlowCanvas = forwardRef(function FlowCanvas({ graph }: Props, ref) {
+/** ✅ Tipar el forwardRef para que el prop `ref` exista */
+const FlowCanvas = forwardRef<FlowCanvasHandle, Props>(function FlowCanvas(
+  { graph, onNodeClick, selectedNodeId },
+  ref
+) {
   return (
     <div className="h-[70vh] w-full rounded-xl overflow-hidden border border-white/10">
-      {/* Provider AQUÍ para habilitar useReactFlow en el hijo */}
       <ReactFlowProvider>
-        <InnerCanvas graph={graph} ref={ref as any} />
+        <InnerCanvas
+          ref={ref}
+          graph={graph}
+          onNodeClick={onNodeClick}
+          selectedNodeId={selectedNodeId}
+        />
       </ReactFlowProvider>
     </div>
   );
@@ -38,10 +56,10 @@ const FlowCanvas = forwardRef(function FlowCanvas({ graph }: Props, ref) {
 
 export default FlowCanvas;
 
-/** ---- Hijo que sí puede usar useReactFlow() ---- */
-const InnerCanvas = forwardRef(function InnerCanvas(
-  { graph }: Props,
-  ref: React.Ref<{ fitView: () => void }>
+/** Hijo que sí puede usar useReactFlow */
+const InnerCanvas = forwardRef<FlowCanvasHandle, Props>(function InnerCanvas(
+  { graph, onNodeClick, selectedNodeId },
+  ref
 ) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node[]>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([]);
@@ -53,9 +71,15 @@ const InnerCanvas = forwardRef(function InnerCanvas(
     const baseNodes: Node[] = graph.nodes.map((n, i) => ({
       id: n.id,
       type: "default",
-      data: { label: n.label || n.type || n.id },
-      position: n.position ?? { x: 80, y: i * 120 }, // fallback simple
-      style: styleForNode(n.type),
+      data: { label: n.label || n.type || n.id, range: n.range },
+      position: n.position ?? { x: 80, y: i * 120 },
+      style: {
+        ...styleForNode(n.type),
+        boxShadow:
+          selectedNodeId === n.id
+            ? "0 0 0 2px rgba(99,102,241,.7), 0 0 16px rgba(99,102,241,.35)"
+            : undefined,
+      },
     }));
 
     const baseEdges: Edge[] = graph.edges.map((e, i) => ({
@@ -71,12 +95,11 @@ const InnerCanvas = forwardRef(function InnerCanvas(
     }));
 
     return { nodes: baseNodes, edges: baseEdges };
-  }, [graph]);
+  }, [graph, selectedNodeId]);
 
   useEffect(() => {
     setNodes(laidOut.nodes);
     setEdges(laidOut.edges);
-    // Ajusta vista tras montar datos
     const t = setTimeout(() => {
       try {
         rf.fitView({ padding: 0.2, includeHiddenNodes: true });
@@ -85,7 +108,7 @@ const InnerCanvas = forwardRef(function InnerCanvas(
     return () => clearTimeout(t);
   }, [laidOut, setNodes, setEdges, rf]);
 
-  // Exponer fitView al padre (opcional)
+  // ✅ Exponer método al padre
   useImperativeHandle(ref, () => ({
     fitView: () => rf.fitView({ padding: 0.2, includeHiddenNodes: true }),
   }));
@@ -96,6 +119,7 @@ const InnerCanvas = forwardRef(function InnerCanvas(
       edges={edges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
+      onNodeClick={(_, n) => onNodeClick?.({ id: n.id, range: (n.data as any)?.range })}
       fitView
     >
       <Background gap={16} />

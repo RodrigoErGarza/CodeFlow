@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { parsePSeIntToIR } from "../../../../lib/flow/parsers/pseint";
 import { parsePythonToIR } from "../../../../lib/flow/parsers/python";
+import { compileJavaToFlow } from "../../../../lib/flow/parsers/java";
 
 export async function POST(req: Request) {
   try {
@@ -10,14 +11,18 @@ export async function POST(req: Request) {
     if (typeof code !== "string" || !code.trim()) {
       return NextResponse.json({ error: "code requerido" }, { status: 400 });
     }
-    if (!["pseint", "python"].includes(language)) {
+
+    const lang = String(language || "").toLowerCase();
+    if (!["pseint", "python", "java"].includes(lang)) {
       return NextResponse.json({ error: "language inválido" }, { status: 400 });
     }
 
     const graph =
-      language === "pseint"
+      lang === "pseint"
         ? parsePSeIntToIR(code)
-        : parsePythonToIR(code);
+        : lang === "python"
+        ? parsePythonToIR(code)
+        : compileJavaToFlow(code); // ← soporte Java
 
     return NextResponse.json(graph, { status: 200 });
   } catch (e: any) {
