@@ -168,3 +168,15 @@ model ChallengeAttempt {
 
   @@index([challengeId, userId])
 }
+model UserSubmission {
+  id            String   @id @default(cuid())
+  userId        String
+  challengeSlug String
+  language      String
+  code          String
+  passed        Boolean
+  score         Int
+  createdAt     DateTime @default(now())
+
+  @@index([userId, challengeSlug])
+}
