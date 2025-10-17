@@ -14,40 +14,64 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-/** ✅ Named export (lo usas en page.tsx) */
+/** Estructura que devuelve /api/flow/compile */
 export type FlowGraph = {
   nodes: Array<{
     id: string;
     type?: string;
     label?: string;
     position?: { x: number; y: number };
-    range?: { start: number; end: number }; // opcional
+    meta?: { line?: number }; // opcional, ayuda a sincronizar con el editor
   }>;
   edges: Array<{ id: string; source: string; target: string; label?: string }>;
 };
 
-/** ✅ Named export: lo usas para el ref en page.tsx */
-export type FlowCanvasHandle = { fitView: () => void };
-
 type Props = {
   graph?: FlowGraph | null;
-  onNodeClick?: (payload: { id: string; range?: { start: number; end: number } }) => void;
+  /** nodo a resaltar (p.ej. paso actual de la simulación) */
   selectedNodeId?: string | null;
+  /** click en nodo → saltar a código si hay meta.line */
+  onNodeClick?: (info: { id: string; range?: { start: number; end: number } }) => void;
 };
 
-/** ✅ Tipar el forwardRef para que el prop `ref` exista */
+export type FlowCanvasHandle = {
+  fitView: () => void;
+};
+
+/** ---- Componente público: mantiene el ReactFlowProvider ---- */
 const FlowCanvas = forwardRef<FlowCanvasHandle, Props>(function FlowCanvas(
-  { graph, onNodeClick, selectedNodeId },
+  { graph, selectedNodeId = null, onNodeClick },
   ref
 ) {
+  // inyecta CSS para el “pulse” una sola vez
+  useEffect(() => {
+    const id = "cf-node-pulse-css";
+    if (document.getElementById(id)) return;
+    const style = document.createElement("style");
+    style.id = id;
+    style.innerHTML = `
+      @keyframes cfPulse {
+        0%   { box-shadow: 0 0 0 0 rgba(99,102,241,.45); }
+        70%  { box-shadow: 0 0 0 10px rgba(99,102,241,0); }
+        100% { box-shadow: 0 0 0 0 rgba(99,102,241,0); }
+      }
+      .cf-node-active {
+        outline: 2px solid rgba(99,102,241,.85);
+        border-radius: 12px;
+        animation: cfPulse 1.2s ease-out infinite;
+      }
+    `;
+    document.head.appendChild(style);
+  }, []);
+
   return (
     <div className="h-[70vh] w-full rounded-xl overflow-hidden border border-white/10">
       <ReactFlowProvider>
         <InnerCanvas
           ref={ref}
           graph={graph}
-          onNodeClick={onNodeClick}
           selectedNodeId={selectedNodeId}
+          onNodeClick={onNodeClick}
         />
       </ReactFlowProvider>
     </div>
@@ -56,9 +80,9 @@ const FlowCanvas = forwardRef<FlowCanvasHandle, Props>(function FlowCanvas(
 
 export default FlowCanvas;
 
-/** Hijo que sí puede usar useReactFlow */
+/** ---- Hijo que usa useReactFlow() y expone el handle ---- */
 const InnerCanvas = forwardRef<FlowCanvasHandle, Props>(function InnerCanvas(
-  { graph, onNodeClick, selectedNodeId },
+  { graph, selectedNodeId = null, onNodeClick },
   ref
 ) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node[]>([]);
@@ -71,15 +95,10 @@ const InnerCanvas = forwardRef<FlowCanvasHandle, Props>(function InnerCanvas(
     const baseNodes: Node[] = graph.nodes.map((n, i) => ({
       id: n.id,
       type: "default",
-      data: { label: n.label || n.type || n.id, range: n.range },
+      data: { label: n.label || n.type || n.id, meta: n.meta },
       position: n.position ?? { x: 80, y: i * 120 },
-      style: {
-        ...styleForNode(n.type),
-        boxShadow:
-          selectedNodeId === n.id
-            ? "0 0 0 2px rgba(99,102,241,.7), 0 0 16px rgba(99,102,241,.35)"
-            : undefined,
-      },
+      style: styleForNode(n.type),
+      className: n.id === selectedNodeId ? "cf-node-active" : undefined,
     }));
 
     const baseEdges: Edge[] = graph.edges.map((e, i) => ({
@@ -108,10 +127,15 @@ const InnerCanvas = forwardRef<FlowCanvasHandle, Props>(function InnerCanvas(
     return () => clearTimeout(t);
   }, [laidOut, setNodes, setEdges, rf]);
 
-  // ✅ Exponer método al padre
   useImperativeHandle(ref, () => ({
     fitView: () => rf.fitView({ padding: 0.2, includeHiddenNodes: true }),
   }));
+
+  function handleNodeClick(_: any, node: Node) {
+    const meta = (node?.data as any)?.meta;
+    const line = meta?.line;
+    onNodeClick?.({ id: node.id, range: line ? { start: line, end: line } : undefined });
+  }
 
   return (
     <ReactFlow
@@ -119,7 +143,7 @@ const InnerCanvas = forwardRef<FlowCanvasHandle, Props>(function InnerCanvas(
       edges={edges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
-      onNodeClick={(_, n) => onNodeClick?.({ id: n.id, range: (n.data as any)?.range })}
+      onNodeClick={handleNodeClick}
       fitView
     >
       <Background gap={16} />
@@ -132,6 +156,7 @@ const InnerCanvas = forwardRef<FlowCanvasHandle, Props>(function InnerCanvas(
   );
 });
 
+/* ---- estilos por tipo de nodo ---- */
 function styleForNode(type?: string) {
   const base = {
     color: "white",
@@ -139,14 +164,27 @@ function styleForNode(type?: string) {
     border: "1px solid rgba(255,255,255,.12)",
     borderRadius: 12,
     padding: 10,
-  };
+  } as const;
+
   switch ((type || "").toLowerCase()) {
     case "start":
-      return { ...base, background: "rgba(34, 211, 238, .12)", border: "1px solid rgba(34,211,238,.35)" };
+      return {
+        ...base,
+        background: "rgba(34, 211, 238, .12)",
+        border: "1px solid rgba(34,211,238,.35)",
+      };
     case "end":
-      return { ...base, background: "rgba(99, 102, 241, .12)", border: "1px solid rgba(99,102,241,.35)" };
+      return {
+        ...base,
+        background: "rgba(99, 102, 241, .12)",
+        border: "1px solid rgba(99,102,241,.35)",
+      };
     case "decision":
-      return { ...base, background: "rgba(234, 179, 8, .12)", border: "1px solid rgba(234,179,8,.35)" };
+      return {
+        ...base,
+        background: "rgba(234, 179, 8, .12)",
+        border: "1px solid rgba(234,179,8,.35)",
+      };
     default:
       return base;
   }
