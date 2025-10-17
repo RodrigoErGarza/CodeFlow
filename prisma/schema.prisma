@@ -95,3 +95,76 @@ model PasswordResetToken {
   usedAt    DateTime?
   createdAt DateTime  @default(now())
 }
+
+
+// prisma/schema.prisma
+// --- deja tu datasource y generator como ya los tengas ---
+
+enum Language {
+  python
+  java
+  pseint
+}
+
+enum AttemptStatus {
+  PENDING
+  PASSED
+  FAILED
+}
+
+model Lesson {
+  id          String    @id @default(cuid())
+  number      Int
+  slug        String    @unique
+  title       String
+  description String
+  content     String    @db.Text
+  createdAt   DateTime  @default(now())
+
+  challenges  Challenge[]
+  progresses  UserProgress[]
+}
+
+model Challenge {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String
+  description String
+  language    Language
+  starterCode String    @db.Text
+  /// Tests en JSON (ej. { "type": "contains", "tokens": ["print(", "if"] })
+  testsJson   String?   @db.Text
+
+  lessonId    String
+  lesson      Lesson    @relation(fields: [lessonId], references: [id])
+
+  attempts    ChallengeAttempt[]
+}
+
+model UserProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  lessonId    String
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+
+  lesson      Lesson    @relation(fields: [lessonId], references: [id])
+
+  @@unique([userId, lessonId])
+}
+
+model ChallengeAttempt {
+  id          String        @id @default(cuid())
+  userId      String
+  challengeId String
+  code        String        @db.Text
+  language    Language
+  status      AttemptStatus @default(PENDING)
+  feedback    String?
+  isCorrect   Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+
+  challenge   Challenge     @relation(fields: [challengeId], references: [id])
+
+  @@index([challengeId, userId])
+}
