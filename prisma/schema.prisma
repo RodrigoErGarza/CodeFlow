@@ -148,10 +148,16 @@ model UserProgress {
   completed   Boolean   @default(false)
   completedAt DateTime?
 
+  // NUEVO
+  progress    Int       @default(0) // 0..100
+  startedAt   DateTime?
+  updatedAt   DateTime  @updatedAt
+
   lesson      Lesson    @relation(fields: [lessonId], references: [id])
 
   @@unique([userId, lessonId])
 }
+
 
 model ChallengeAttempt {
   id          String        @id @default(cuid())
@@ -179,4 +185,84 @@ model UserSubmission {
   createdAt     DateTime @default(now())
 
   @@index([userId, challengeSlug])
+}
+
+// prisma/schema.prisma  (añade al final)
+model Unit {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  number    Int
+  title     String
+  summary   String
+  sections  Section[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Section {
+  id       String  @id @default(cuid())
+  unitId   String
+  unit     Unit    @relation(fields: [unitId], references: [id])
+  index    Int
+  title    String
+  content  String
+  questions Question[]
+
+  @@unique([unitId, index], name: "unitId_index")
+}
+
+
+model Question {
+  id          String   @id @default(cuid())
+  sectionId   String
+  section     Section  @relation(fields: [sectionId], references: [id])
+  prompt      String
+  explanation String?
+  answerKey   String?    // ← opcional para poder crear primero la pregunta
+
+  options     Option[]
+
+  @@unique([sectionId, prompt], name: "sectionId_prompt") // ← clave compuesta
+}
+
+model Option {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+  label      String
+
+  @@unique([questionId, label], name: "questionId_label") // ← clave compuesta
+}
+
+model UserUnitProgress {
+  id        String   @id @default(cuid())
+  userId    String
+  unitId    String
+  currentSectionIdx Int      @default(0)
+  // porcentaje 0..100 (lo recalculamos al completar secciones)
+  percent   Int      @default(0)
+  updatedAt DateTime @updatedAt
+  @@unique([userId, unitId])
+}
+
+model UserSectionProgress {
+  id         String   @id @default(cuid())
+  userId     String
+  sectionId  String
+  completed  Boolean  @default(false)
+  answersJson String? @db.Text
+  updatedAt  DateTime @updatedAt
+  @@unique([userId, sectionId])
+}
+
+model UserAnswer {
+  id         String   @id @default(cuid())
+  userId     String
+  unitId     String
+  sectionId  String
+  questionId String
+  optionId   String
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, questionId]) // una respuesta por pregunta por usuario
 }

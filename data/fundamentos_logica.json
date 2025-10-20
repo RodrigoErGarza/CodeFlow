@@ -1,0 +1,230 @@
+{
+  "slug": "fundamentos-logica",
+  "number": 1,
+  "title": "Fundamentos de Lógica y Algoritmos (La Base)",
+  "summary": "Comprende qué es un algoritmo, cómo se manejan las variables y tipos de datos, el uso de operadores y las estructuras de control secuenciales y condicionales básicas.",
+  "sections": [
+    {
+      "index": 1,
+      "title": "1.1 Introducción a algoritmos",
+      "content": "<p>Un <strong>algoritmo</strong> es un conjunto ordenado y finito de pasos que se siguen para resolver un problema o realizar una tarea. En programación, los algoritmos permiten expresar de forma lógica y precisa cómo debe actuar un programa.</p><p><strong>Características principales:</strong></p><ul><li><strong>Finitud:</strong> debe terminar después de un número limitado de pasos.</li><li><strong>Precisión:</strong> las instrucciones deben ser claras y sin ambigüedades.</li><li><strong>Orden:</strong> las instrucciones deben ejecutarse en una secuencia lógica.</li><li><strong>Entrada y salida:</strong> el algoritmo recibe datos (entrada) y genera resultados (salida).</li></ul><p><strong>Ejemplo:</strong> Algoritmo para preparar una taza de café:<br>1. Calentar agua.<br>2. Colocar café en una taza.<br>3. Verter el agua caliente.<br>4. Revolver y servir.</p>",
+      "questions": [
+        {
+          "prompt": "¿Qué es un algoritmo?",
+          "options": [
+            "Una secuencia ordenada de pasos para resolver un problema.",
+            "Un programa ya compilado.",
+            "Un conjunto de errores de código."
+          ],
+          "answer": "Una secuencia ordenada de pasos para resolver un problema.",
+          "explanation": "Un algoritmo define los pasos lógicos que permiten resolver un problema."
+        },
+        {
+          "prompt": "¿Qué característica indica que un algoritmo debe terminar?",
+          "options": [
+            "Finitud",
+            "Repetición",
+            "Ambigüedad"
+          ],
+          "answer": "Finitud",
+          "explanation": "Todo algoritmo debe tener un número limitado de pasos."
+        },
+        {
+          "prompt": "En un algoritmo, los datos que se ingresan se conocen como:",
+          "options": [
+            "Entradas",
+            "Resultados",
+            "Pasos"
+          ],
+          "answer": "Entradas",
+          "explanation": "Las entradas son los datos que se utilizan al ejecutar el algoritmo."
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "title": "1.2 Variables y tipos de datos",
+      "content": "<p>Una <strong>variable</strong> es un espacio en memoria que guarda un valor que puede cambiar durante la ejecución del programa. Cada variable tiene un <strong>nombre</strong> y un <strong>tipo de dato</strong>.</p><p><strong>Tipos de datos comunes:</strong></p><ul><li><strong>Entero (int):</strong> números sin decimales.</li><li><strong>Real o flotante (float):</strong> números con decimales.</li><li><strong>Cadena (string):</strong> texto o caracteres.</li><li><strong>Booleano (bool):</strong> verdadero o falso.</li></ul><p><strong>Ejemplo:</strong></p><pre><code>edad = 18<br>nombre = \"Ana\"<br>esEstudiante = true</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Qué es una variable?",
+          "options": [
+            "Un espacio en memoria que almacena un valor.",
+            "Un tipo de dato que no cambia.",
+            "Un error lógico en el código."
+          ],
+          "answer": "Un espacio en memoria que almacena un valor.",
+          "explanation": "Las variables permiten guardar y manipular información dentro del programa."
+        },
+        {
+          "prompt": "¿Qué tipo de dato se usa para representar texto?",
+          "options": [
+            "Cadena (string)",
+            "Entero (int)",
+            "Booleano (bool)"
+          ],
+          "answer": "Cadena (string)",
+          "explanation": "Las cadenas permiten representar texto o caracteres."
+        },
+        {
+          "prompt": "Si 'esMayor = false', ¿qué tipo de dato tiene la variable?",
+          "options": [
+            "Booleano",
+            "Cadena",
+            "Entero"
+          ],
+          "answer": "Booleano",
+          "explanation": "El tipo booleano almacena valores de verdadero o falso."
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "title": "1.3 Operadores",
+      "content": "<p>Los <strong>operadores</strong> permiten realizar operaciones entre valores o variables. Se clasifican en tres tipos:</p><ul><li><strong>Aritméticos:</strong> realizan cálculos matemáticos (+, -, *, /, %).</li><li><strong>Relacionales:</strong> comparan dos valores (<, >, <=, >=, ==, !=).</li><li><strong>Lógicos:</strong> combinan o invierten condiciones booleanas (Y, O, NO).</li></ul><p><strong>Ejemplo:</strong></p><pre><code>a = 5<br>b = 3<br>resultado = (a > b) Y (b < 10)  // Verdadero</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Qué tipo de operador se usa para comparar valores?",
+          "options": [
+            "Relacional",
+            "Aritmético",
+            "Lógico"
+          ],
+          "answer": "Relacional",
+          "explanation": "Los operadores relacionales comparan valores devolviendo verdadero o falso."
+        },
+        {
+          "prompt": "¿Qué devuelve el operador lógico AND (Y)?",
+          "options": [
+            "Verdadero si ambas condiciones son verdaderas.",
+            "Verdadero si una es falsa.",
+            "Falso siempre."
+          ],
+          "answer": "Verdadero si ambas condiciones son verdaderas.",
+          "explanation": "AND solo devuelve verdadero cuando todas las condiciones lo son."
+        },
+        {
+          "prompt": "¿Cuál es el resultado de '10 % 3'?",
+          "options": [
+            "1",
+            "3",
+            "0"
+          ],
+          "answer": "1",
+          "explanation": "El operador módulo (%) devuelve el residuo de una división."
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "title": "1.4 Estructuras de control secuencial",
+      "content": "<p>Una <strong>estructura secuencial</strong> ejecuta las instrucciones en orden, una después de otra, sin saltos ni decisiones. Representa el flujo más básico en un algoritmo: <strong>leer → procesar → escribir</strong>.</p><p><strong>Ejemplo:</strong></p><pre><code>Leer número1<br>Leer número2<br>suma = número1 + número2<br>Mostrar suma</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Qué caracteriza a una estructura secuencial?",
+          "options": [
+            "Ejecuta instrucciones en orden, una tras otra.",
+            "Depende de condiciones.",
+            "Se repite infinitamente."
+          ],
+          "answer": "Ejecuta instrucciones en orden, una tras otra.",
+          "explanation": "La estructura secuencial sigue un flujo lineal sin condiciones."
+        },
+        {
+          "prompt": "¿Cuál es el flujo básico en una estructura secuencial?",
+          "options": [
+            "Entrada → Proceso → Salida",
+            "Proceso → Condición → Repetición",
+            "Entrada → Salida → Condición"
+          ],
+          "answer": "Entrada → Proceso → Salida",
+          "explanation": "Las estructuras secuenciales siguen este flujo básico."
+        },
+        {
+          "prompt": "¿Qué ocurre si una instrucción dentro de la secuencia falla?",
+          "options": [
+            "El flujo se interrumpe.",
+            "Se repite automáticamente.",
+            "Se ignora el error."
+          ],
+          "answer": "El flujo se interrumpe.",
+          "explanation": "Un error detiene la ejecución del flujo secuencial."
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "title": "1.5 Estructuras condicionales simples",
+      "content": "<p>Las <strong>estructuras condicionales simples</strong> permiten ejecutar una acción solo si se cumple una condición. En pseudocódigo se representa así:</p><pre><code>SI (condición) ENTONCES<br>   acción<br>FIN SI</code></pre><p><strong>Ejemplo:</strong></p><pre><code>SI edad >= 18 ENTONCES<br>   Mostrar \"Eres mayor de edad\"<br>FIN SI</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Qué ocurre si la condición de una estructura simple es falsa?",
+          "options": [
+            "No se ejecuta la acción.",
+            "Se ejecuta igual.",
+            "Repite el ciclo."
+          ],
+          "answer": "No se ejecuta la acción.",
+          "explanation": "La instrucción solo se ejecuta si la condición es verdadera."
+        },
+        {
+          "prompt": "¿Cuál es el propósito de una estructura condicional simple?",
+          "options": [
+            "Tomar decisiones basadas en una condición.",
+            "Repetir acciones varias veces.",
+            "Declarar variables."
+          ],
+          "answer": "Tomar decisiones basadas en una condición.",
+          "explanation": "Las condicionales simples permiten ejecutar una acción si la condición se cumple."
+        },
+        {
+          "prompt": "En 'SI nota >= 60 ENTONCES aprobar', ¿qué pasa si nota = 45?",
+          "options": [
+            "No se ejecuta 'aprobar'.",
+            "Se aprueba igual.",
+            "Se muestra un error automático."
+          ],
+          "answer": "No se ejecuta 'aprobar'.",
+          "explanation": "Como la condición es falsa, la acción no se ejecuta."
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "title": "1.6 Estructuras condicionales compuestas",
+      "content": "<p>Una <strong>estructura condicional compuesta</strong> evalúa una condición y permite ejecutar una acción si es verdadera, o una acción distinta si es falsa.</p><pre><code>SI (condición) ENTONCES<br>   acción 1<br>SINO<br>   acción 2<br>FIN SI</code></pre><p><strong>Ejemplo:</strong></p><pre><code>SI edad >= 18 ENTONCES<br>   Mostrar \"Eres mayor de edad\"<br>SINO<br>   Mostrar \"Eres menor de edad\"<br>FIN SI</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Qué diferencia a la estructura compuesta de la simple?",
+          "options": [
+            "Permite una alternativa cuando la condición es falsa.",
+            "Siempre ejecuta ambas acciones.",
+            "No utiliza condiciones."
+          ],
+          "answer": "Permite una alternativa cuando la condición es falsa.",
+          "explanation": "La estructura compuesta ofrece dos caminos: uno si es verdadera y otro si es falsa."
+        },
+        {
+          "prompt": "En una estructura SI–SINO, ¿qué ocurre si la condición es verdadera?",
+          "options": [
+            "Se ejecuta la primera acción (ENTONCES).",
+            "Se ejecuta la acción del SINO.",
+            "No se ejecuta nada."
+          ],
+          "answer": "Se ejecuta la primera acción (ENTONCES).",
+          "explanation": "Cuando la condición es verdadera, se ejecuta la acción del bloque ENTONCES."
+        },
+        {
+          "prompt": "¿Cuál representa una estructura condicional compuesta?",
+          "options": [
+            "SI... ENTONCES... SINO... FIN SI",
+            "SI... ENTONCES... FIN SI",
+            "Mientras... hacer..."
+          ],
+          "answer": "SI... ENTONCES... SINO... FIN SI",
+          "explanation": "Esta estructura permite manejar dos posibles caminos de ejecución."
+        }
+      ]
+    }
+  ]
+}

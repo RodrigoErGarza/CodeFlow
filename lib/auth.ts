@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 const bcrypt = require("bcrypt");
 import { Role } from "@prisma/client";
 import GoogleProvider from "next-auth/providers/google";
+import { getServerSession } from "next-auth";
+
 
 declare module "next-auth" {
   interface Session {
@@ -90,3 +92,15 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.AUTH_SECRET,
 };
+
+
+export async function getUserIdOrThrow() {
+  const session = await getServerSession(authOptions);
+  const uid = session?.user?.id;
+  if (!uid) {
+    const err = new Error("Unauthorized");
+    (err as any).status = 401;
+    throw err;
+  }
+  return uid;
+}
