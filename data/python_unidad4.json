@@ -1,0 +1,230 @@
+{
+  "slug": "python",
+  "number": 4,
+  "title": "Python (La Implementación Práctica I)",
+  "summary": "Introducción práctica a Python: instalación, primer programa, variables y tipos nativos, condicionales, listas/tuplas, ciclos y funciones.",
+  "sections": [
+    {
+      "index": 1,
+      "title": "4.1 Instalación y Primer Programa",
+      "content": "<p>Para programar en <strong>Python</strong> debes instalarlo (Windows, macOS o Linux) y usar un editor o IDE como IDLE, Visual Studio Code o PyCharm.</p><p><strong>Funciones básicas:</strong> <code>print()</code> muestra mensajes; <code>input()</code> solicita datos desde el teclado.</p><p><strong>Ejemplo:</strong></p><pre><code>nombre = input('¿Cómo te llamas? ')\nprint('Hola,', nombre)</code></pre><ul><li>Los archivos se guardan con extensión <code>.py</code>.</li><li>Puedes ejecutar desde el IDE o con <code>python archivo.py</code>.</li><li>No necesitas declarar el tipo de la variable antes de usarla.</li></ul>",
+      "questions": [
+        {
+          "prompt": "¿Qué función se usa para mostrar texto en Python?",
+          "options": [
+            "print()",
+            "mostrar()",
+            "output()"
+          ],
+          "answer": "print()",
+          "explanation": "La función integrada print() envía texto a la salida estándar."
+        },
+        {
+          "prompt": "¿Cuál es la extensión de los archivos de Python?",
+          "options": [
+            ".py",
+            ".exe",
+            ".java"
+          ],
+          "answer": ".py",
+          "explanation": "Los scripts de Python se guardan tradicionalmente con la extensión .py."
+        },
+        {
+          "prompt": "¿Qué función se usa para pedir datos al usuario?",
+          "options": [
+            "input()",
+            "leer()",
+            "scan()"
+          ],
+          "answer": "input()",
+          "explanation": "input() lee una cadena ingresada por el usuario desde el teclado."
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "title": "4.2 Variables y Tipos de Datos Nativos",
+      "content": "<p>Python usa <strong>tipado dinámico</strong>: el tipo se infiere a partir del valor. Tipos básicos: <code>int</code> (enteros), <code>float</code> (decimales), <code>str</code> (texto) y <code>bool</code> (True/False).</p><p><strong>Ejemplo:</strong></p><pre><code>edad = 18        # int\naltura = 1.75    # float\nnombre = 'Ana'   # str\nmayor = True     # bool</code></pre><p><strong>Conversión de tipos:</strong></p><pre><code>x = int('10')     # '10' → 10\ny = float('3.5')  # '3.5' → 3.5</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Qué tipo representa valores True y False?",
+          "options": [
+            "bool",
+            "int",
+            "str"
+          ],
+          "answer": "bool",
+          "explanation": "El tipo booleano almacena valores lógicos Verdadero/Falso."
+        },
+        {
+          "prompt": "¿Qué caracteriza al tipado dinámico de Python?",
+          "options": [
+            "No se declara el tipo antes de asignar un valor.",
+            "Siempre se debe declarar el tipo.",
+            "Solo admite tipos numéricos."
+          ],
+          "answer": "No se declara el tipo antes de asignar un valor.",
+          "explanation": "Python infiere el tipo automáticamente según el valor asignado."
+        },
+        {
+          "prompt": "¿Qué instrucción convierte la cadena '25' a entero?",
+          "options": [
+            "int('25')",
+            "float('25')",
+            "str('25')"
+          ],
+          "answer": "int('25')",
+          "explanation": "int() convierte una cadena que representa un entero a tipo int."
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "title": "4.3 Estructuras Condicionales",
+      "content": "<p>Las estructuras condicionales permiten ejecutar bloques según condiciones lógicas. Python usa <code>if</code>, <code>elif</code> y <code>else</code> y depende de la <strong>indentación</strong> para delimitar bloques.</p><p><strong>Ejemplo:</strong></p><pre><code>nota = 75\nif nota >= 90:\n    print('Excelente')\nelif nota >= 60:\n    print('Aprobado')\nelse:\n    print('Reprobado')</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Qué palabra se usa para una condición adicional en Python?",
+          "options": [
+            "elif",
+            "elseif",
+            "else if"
+          ],
+          "answer": "elif",
+          "explanation": "Python usa elif (no elseif) para encadenar condiciones."
+        },
+        {
+          "prompt": "¿Qué determina la indentación en Python?",
+          "options": [
+            "El bloque de código que pertenece a una condición o bucle.",
+            "El número de líneas del programa.",
+            "La prioridad de operadores."
+          ],
+          "answer": "El bloque de código que pertenece a una condición o bucle.",
+          "explanation": "La indentación define qué instrucciones forman parte del bloque."
+        },
+        {
+          "prompt": "Si nota = 40, ¿qué imprime el siguiente código: if nota >= 60: print('Aprobado') else: print('Reprobado')?",
+          "options": [
+            "Reprobado",
+            "Aprobado",
+            "Excelente"
+          ],
+          "answer": "Reprobado",
+          "explanation": "Como 40 < 60, se ejecuta el bloque del else."
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "title": "4.4 Listas (Arrays) y Tuplas",
+      "content": "<p>Las <strong>listas</strong> son colecciones ordenadas y mutables; las <strong>tuplas</strong> son ordenadas e inmutables.</p><p><strong>Lista:</strong></p><pre><code>frutas = ['manzana', 'pera', 'uva']\nfrutas.append('kiwi')\nprimera = frutas[0]</code></pre><p><strong>Tupla:</strong></p><pre><code>colores = ('rojo', 'verde', 'azul')\nsegundo = colores[1]</code></pre><ul><li>Lista → corchetes <code>[]</code>, editable.</li><li>Tupla → paréntesis <code>()</code>, inmutable.</li></ul>",
+      "questions": [
+        {
+          "prompt": "¿Qué estructura es inmutable en Python?",
+          "options": [
+            "Tupla",
+            "Lista",
+            "Diccionario"
+          ],
+          "answer": "Tupla",
+          "explanation": "Las tuplas no se pueden modificar después de creadas."
+        },
+        {
+          "prompt": "¿Qué método agrega un elemento al final de una lista?",
+          "options": [
+            "append()",
+            "add()",
+            "insertar()"
+          ],
+          "answer": "append()",
+          "explanation": "append() añade un elemento al final de la lista."
+        },
+        {
+          "prompt": "¿Cómo accedes al primer elemento de una lista 'numeros'?",
+          "options": [
+            "numeros[0]",
+            "numeros(1)",
+            "numeros{0}"
+          ],
+          "answer": "numeros[0]",
+          "explanation": "El índice inicial en Python es 0."
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "title": "4.5 Ciclos Repetitivos",
+      "content": "<p>Python ofrece dos ciclos principales: <code>for</code> y <code>while</code>.</p><p><strong>for</strong> para conteos o iterar colecciones:</p><pre><code>for i in range(1, 6):\n    print(i)</code></pre><p><strong>while</strong> controlado por condición:</p><pre><code>contador = 1\nwhile contador <= 5:\n    print(contador)\n    contador += 1</code></pre><ul><li><code>for</code>: cuando se conoce el número de repeticiones o se recorre una colección.</li><li><code>while</code>: cuando depende de una condición.</li></ul>",
+      "questions": [
+        {
+          "prompt": "¿Qué palabra clave inicia un ciclo de conteo en Python?",
+          "options": [
+            "for",
+            "loop",
+            "while"
+          ],
+          "answer": "for",
+          "explanation": "for se usa junto a range() para iteraciones controladas."
+        },
+        {
+          "prompt": "¿Qué función se usa comúnmente con for para generar secuencias de números?",
+          "options": [
+            "range()",
+            "count()",
+            "set()"
+          ],
+          "answer": "range()",
+          "explanation": "range() produce secuencias numéricas para iterar con for."
+        },
+        {
+          "prompt": "¿Qué instrucción termina un ciclo inmediatamente?",
+          "options": [
+            "break",
+            "stop",
+            "exit"
+          ],
+          "answer": "break",
+          "explanation": "break interrumpe el ciclo más cercano."
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "title": "4.6 Funciones",
+      "content": "<p>Las <strong>funciones</strong> son bloques reutilizables que realizan tareas y pueden recibir parámetros y devolver valores con <code>return</code>.</p><p><strong>Definición y llamada:</strong></p><pre><code>def saludar(nombre):\n    print('Hola,', nombre)\n\nsaludar('Ana')</code></pre><p><strong>Con retorno:</strong></p><pre><code>def sumar(a, b):\n    return a + b\n\nresultado = sumar(3, 5)</code></pre><ul><li>Mejoran la organización y la legibilidad.</li><li>Permiten reutilizar código.</li></ul>",
+      "questions": [
+        {
+          "prompt": "¿Qué palabra clave define una función en Python?",
+          "options": [
+            "def",
+            "func",
+            "create"
+          ],
+          "answer": "def",
+          "explanation": "def introduce el nombre y la lista de parámetros de la función."
+        },
+        {
+          "prompt": "¿Qué instrucción devuelve un valor desde una función?",
+          "options": [
+            "return",
+            "print",
+            "output"
+          ],
+          "answer": "return",
+          "explanation": "return finaliza la función y entrega el valor indicado."
+        },
+        {
+          "prompt": "¿Cuál es una ventaja principal de usar funciones?",
+          "options": [
+            "Reutilización y organización del código.",
+            "Compila más rápido.",
+            "Evita el uso de variables."
+          ],
+          "answer": "Reutilización y organización del código.",
+          "explanation": "Las funciones permiten dividir problemas en partes manejables y reutilizables."
+        }
+      ]
+    }
+  ]
+}

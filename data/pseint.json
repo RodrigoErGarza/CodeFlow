@@ -1,0 +1,230 @@
+{
+  "slug": "pseint",
+  "number": 3,
+  "title": "PSeInt (La Práctica de Lógica en Español)",
+  "summary": "Aprende a implementar algoritmos en PSeInt utilizando estructuras básicas, condicionales, ciclos y subprocesos para afianzar la lógica.",
+  "sections": [
+    {
+      "index": 1,
+      "title": "3.1 Entorno de PSeInt y Estructura Básica",
+      "content": "<p><strong>PSeInt</strong> (Pseudocode Interpreter) es un entorno educativo para escribir algoritmos usando lenguaje natural en español. Permite traducir el pensamiento lógico a código estructurado.</p><p><strong>Estructura básica de un algoritmo:</strong></p><pre><code>Proceso NombreDelProceso<br>    Escribir 'Hola Mundo'<br>FinProceso</code></pre><p><strong>Comandos principales:</strong></p><ul><li><strong>Escribir:</strong> muestra mensajes o resultados en pantalla.</li><li><strong>Leer:</strong> solicita datos al usuario.</li></ul><p><strong>Ejemplo:</strong></p><pre><code>Proceso Saludo<br>    Definir nombre Como Cadena<br>    Escribir '¿Cómo te llamas?'<br>    Leer nombre<br>    Escribir 'Hola ', nombre<br>FinProceso</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Cuál es la palabra clave que marca el inicio de un algoritmo en PSeInt?",
+          "options": [
+            "Proceso",
+            "Inicio",
+            "Algoritmo"
+          ],
+          "answer": "Proceso",
+          "explanation": "La palabra 'Proceso' define el comienzo de un algoritmo en PSeInt."
+        },
+        {
+          "prompt": "¿Qué comando se usa para mostrar texto o resultados en pantalla?",
+          "options": [
+            "Escribir",
+            "Leer",
+            "Mostrar"
+          ],
+          "answer": "Escribir",
+          "explanation": "El comando 'Escribir' muestra datos o mensajes en pantalla."
+        },
+        {
+          "prompt": "¿Cuál es la función del comando 'Leer'?",
+          "options": [
+            "Permitir al usuario ingresar datos.",
+            "Mostrar resultados.",
+            "Terminar el proceso."
+          ],
+          "answer": "Permitir al usuario ingresar datos.",
+          "explanation": "El comando 'Leer' permite capturar datos ingresados por el usuario."
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "title": "3.2 Definición de Variables",
+      "content": "<p>Las <strong>variables</strong> son espacios donde se almacenan datos que pueden cambiar durante la ejecución del algoritmo. En PSeInt se definen con el comando <strong>Definir</strong>, indicando el nombre y el tipo de dato.</p><p><strong>Ejemplo:</strong></p><pre><code>Definir edad Como Entero<br>Definir nombre Como Cadena<br>Definir nota Como Real</code></pre><p><strong>Tipos de datos comunes:</strong></p><ul><li>Entero: números sin decimales.</li><li>Real: números con decimales.</li><li>Cadena: texto.</li><li>Lógico: valores Verdadero o Falso.</li></ul><p><strong>Operador de asignación:</strong> &lt;- (se usa para dar valor a una variable). Ejemplo: edad &lt;- 18</p>",
+      "questions": [
+        {
+          "prompt": "¿Qué comando se usa para declarar una variable en PSeInt?",
+          "options": [
+            "Definir",
+            "Variable",
+            "Asignar"
+          ],
+          "answer": "Definir",
+          "explanation": "El comando 'Definir' permite declarar variables en PSeInt."
+        },
+        {
+          "prompt": "¿Qué tipo de dato se usa para texto?",
+          "options": [
+            "Cadena",
+            "Entero",
+            "Lógico"
+          ],
+          "answer": "Cadena",
+          "explanation": "El tipo 'Cadena' se usa para representar texto o caracteres."
+        },
+        {
+          "prompt": "¿Qué símbolo se utiliza para asignar un valor en PSeInt?",
+          "options": [
+            "<-",
+            "=",
+            "->"
+          ],
+          "answer": "<-",
+          "explanation": "El operador '<-' se usa para asignar valores a variables."
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "title": "3.3 Estructura Condicional Si–Entonces",
+      "content": "<p>Las <strong>estructuras condicionales</strong> permiten ejecutar acciones diferentes según una condición. En PSeInt se usa la palabra clave <strong>Si</strong>.</p><p><strong>Ejemplo simple:</strong></p><pre><code>Si edad >= 18 Entonces<br>    Escribir 'Eres mayor de edad'<br>FinSi</code></pre><p><strong>Ejemplo compuesto:</strong></p><pre><code>Si nota >= 60 Entonces<br>    Escribir 'Aprobado'<br>Sino<br>    Escribir 'Reprobado'<br>FinSi</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Cuál es la palabra reservada que inicia una condición en PSeInt?",
+          "options": [
+            "Si",
+            "Mientras",
+            "Para"
+          ],
+          "answer": "Si",
+          "explanation": "El comando 'Si' inicia una estructura condicional en PSeInt."
+        },
+        {
+          "prompt": "¿Qué palabra se usa para la condición falsa en una estructura compuesta?",
+          "options": [
+            "Sino",
+            "FinSi",
+            "Mientras"
+          ],
+          "answer": "Sino",
+          "explanation": "La palabra 'Sino' ejecuta el bloque cuando la condición no se cumple."
+        },
+        {
+          "prompt": "¿Qué hace PSeInt cuando la condición del 'Si' no se cumple?",
+          "options": [
+            "Ejecuta el bloque del 'Sino' (si existe).",
+            "Termina el proceso.",
+            "Muestra un error."
+          ],
+          "answer": "Ejecuta el bloque del 'Sino' (si existe).",
+          "explanation": "Si la condición es falsa, se ejecuta el bloque 'Sino' si está definido."
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "title": "3.4 Estructura Repetitiva Mientras",
+      "content": "<p>La estructura <strong>Mientras</strong> repite un bloque de instrucciones mientras se cumpla una condición. Cuando deja de ser verdadera, el algoritmo continúa después del ciclo.</p><p><strong>Ejemplo:</strong></p><pre><code>contador <- 1<br>Mientras contador <= 5 Hacer<br>    Escribir contador<br>    contador <- contador + 1<br>FinMientras</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Qué ocurre mientras la condición del ciclo sea verdadera?",
+          "options": [
+            "El bloque se repite.",
+            "El proceso termina.",
+            "La condición cambia automáticamente."
+          ],
+          "answer": "El bloque se repite.",
+          "explanation": "El ciclo 'Mientras' ejecuta su bloque mientras la condición sea verdadera."
+        },
+        {
+          "prompt": "¿Qué palabra clave finaliza el ciclo 'Mientras'?",
+          "options": [
+            "FinMientras",
+            "FinPara",
+            "Terminar"
+          ],
+          "answer": "FinMientras",
+          "explanation": "Cada ciclo 'Mientras' se cierra con la palabra 'FinMientras'."
+        },
+        {
+          "prompt": "¿Cuál es el propósito del ciclo 'Mientras'?",
+          "options": [
+            "Repetir un bloque hasta que una condición deje de cumplirse.",
+            "Ejecutar una sola instrucción.",
+            "Definir variables."
+          ],
+          "answer": "Repetir un bloque hasta que una condición deje de cumplirse.",
+          "explanation": "El ciclo 'Mientras' permite repetir instrucciones bajo una condición lógica."
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "title": "3.5 Estructura Repetitiva Para",
+      "content": "<p>El ciclo <strong>Para</strong> se usa cuando se conoce el número de repeticiones que se deben ejecutar. Incluye una variable de control que cambia automáticamente en cada iteración.</p><p><strong>Ejemplo:</strong></p><pre><code>Para i <- 1 Hasta 5 Con Paso 1 Hacer<br>    Escribir i<br>FinPara</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Cuándo se utiliza la estructura 'Para'?",
+          "options": [
+            "Cuando se conoce cuántas veces se repetirá el ciclo.",
+            "Cuando la repetición depende de una condición lógica.",
+            "Cuando solo se ejecuta una vez."
+          ],
+          "answer": "Cuando se conoce cuántas veces se repetirá el ciclo.",
+          "explanation": "El ciclo 'Para' se usa cuando el número de iteraciones es conocido."
+        },
+        {
+          "prompt": "¿Cuál es la palabra clave que marca el final de un ciclo 'Para'?",
+          "options": [
+            "FinPara",
+            "FinMientras",
+            "FinProceso"
+          ],
+          "answer": "FinPara",
+          "explanation": "El ciclo 'Para' se cierra con la palabra clave 'FinPara'."
+        },
+        {
+          "prompt": "¿Qué palabra indica el incremento en cada repetición del 'Para'?",
+          "options": [
+            "Con Paso",
+            "Incrementar",
+            "Hasta"
+          ],
+          "answer": "Con Paso",
+          "explanation": "El modificador 'Con Paso' indica cómo avanza la variable de control."
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "title": "3.6 Subprocesos / Funciones Simples",
+      "content": "<p>Un <strong>Subproceso</strong> es una porción de código reutilizable que realiza una tarea específica dentro del algoritmo principal. Permite modularizar el código y hacerlo más ordenado.</p><p><strong>Ejemplo:</strong></p><pre><code>Subproceso Sumar(a, b)<br>    Definir resultado Como Entero<br>    resultado <- a + b<br>    Escribir 'La suma es: ', resultado<br>FinSubproceso<br><br>Proceso Principal<br>    Sumar(3, 5)<br>FinProceso</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Qué palabra se usa para crear una función o subproceso en PSeInt?",
+          "options": [
+            "Subproceso",
+            "Funcion",
+            "Modulo"
+          ],
+          "answer": "Subproceso",
+          "explanation": "La palabra 'Subproceso' define una función o bloque reutilizable en PSeInt."
+        },
+        {
+          "prompt": "¿Cuál es la ventaja principal de usar subprocesos?",
+          "options": [
+            "Reutilizar código y mantener ordenado el programa.",
+            "Evitar el uso de variables.",
+            "Ejecutar el programa más rápido."
+          ],
+          "answer": "Reutilizar código y mantener ordenado el programa.",
+          "explanation": "Los subprocesos permiten modularizar y reutilizar partes del algoritmo."
+        },
+        {
+          "prompt": "¿Qué palabra finaliza un subproceso?",
+          "options": [
+            "FinSubproceso",
+            "FinSi",
+            "Terminar"
+          ],
+          "answer": "FinSubproceso",
+          "explanation": "Cada subproceso termina con la palabra clave 'FinSubproceso'."
+        }
+      ]
+    }
+  ]
+}

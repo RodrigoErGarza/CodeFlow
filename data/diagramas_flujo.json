@@ -1,0 +1,230 @@
+{
+  "slug": "diagramas-flujo",
+  "number": 2,
+  "title": "Diagramas de Flujo (La Visualización)",
+  "summary": "Aprende a representar gráficamente la lógica mediante diagramas de flujo: símbolos, conexiones, decisiones y estructuras repetitivas.",
+  "sections": [
+    {
+      "index": 1,
+      "title": "2.1 Simbología Esencial",
+      "content": "<p>Los <strong>diagramas de flujo</strong> utilizan símbolos gráficos normalizados que representan las distintas partes de un algoritmo. Cada figura tiene un significado específico y se conecta mediante flechas direccionales que indican el flujo del proceso.</p><p><strong>Principales símbolos:</strong></p><ul><li>Inicio / Fin: Representa el punto de inicio o final del algoritmo.</li><li>Proceso: Indica una operación o acción (por ejemplo, una suma o asignación).</li><li>Entrada / Salida: Permite leer datos o mostrar resultados.</li><li>Decisión: Representa una condición lógica (Sí/No o Verdadero/Falso).</li><li>Conectores: Enlazan distintas partes del diagrama o continúan en otra página.</li><li>Líneas de flujo: Flechas que indican el sentido de ejecución.</li></ul>",
+      "questions": [
+        {
+          "prompt": "¿Qué representa el símbolo de rombo en un diagrama de flujo?",
+          "options": [
+            "Una decisión o condición lógica.",
+            "Un proceso aritmético.",
+            "El inicio o fin del algoritmo."
+          ],
+          "answer": "Una decisión o condición lógica.",
+          "explanation": "El rombo indica una pregunta o condición que puede tener dos salidas: Sí o No."
+        },
+        {
+          "prompt": "¿Qué indica el símbolo de paralelogramo?",
+          "options": [
+            "Operación de entrada o salida.",
+            "Un cálculo matemático.",
+            "Una decisión lógica."
+          ],
+          "answer": "Operación de entrada o salida.",
+          "explanation": "El paralelogramo se usa para leer o mostrar información."
+        },
+        {
+          "prompt": "¿Qué función tienen las líneas de flujo?",
+          "options": [
+            "Indicar la secuencia de ejecución.",
+            "Contener decisiones.",
+            "Almacenar datos."
+          ],
+          "answer": "Indicar la secuencia de ejecución.",
+          "explanation": "Las líneas de flujo conectan los símbolos y marcan el orden del algoritmo."
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "title": "2.2 Diseño de Diagramas Secuenciales",
+      "content": "<p>Un <strong>diagrama secuencial</strong> representa procesos simples donde las instrucciones se ejecutan una tras otra sin decisiones ni ciclos. Se sigue el flujo <em>entrada → proceso → salida</em>.</p><p><strong>Pasos para crearlo:</strong></p><ol><li>Identificar el problema a resolver.</li><li>Definir las entradas (datos necesarios).</li><li>Especificar las operaciones a realizar.</li><li>Determinar la salida esperada.</li><li>Representar cada paso con su símbolo correspondiente.</li></ol><p><strong>Ejemplo:</strong> Calcular el área de un rectángulo: Entrada (base y altura), Proceso (base × altura), Salida (resultado).</p>",
+      "questions": [
+        {
+          "prompt": "¿Cuál es el orden correcto en un diagrama secuencial?",
+          "options": [
+            "Entrada → Proceso → Salida",
+            "Proceso → Entrada → Salida",
+            "Salida → Entrada → Proceso"
+          ],
+          "answer": "Entrada → Proceso → Salida",
+          "explanation": "Todo proceso secuencial sigue este flujo lógico lineal."
+        },
+        {
+          "prompt": "¿Qué tipo de problemas se representan con diagramas secuenciales?",
+          "options": [
+            "Procesos sin decisiones ni ciclos.",
+            "Procesos con condiciones complejas.",
+            "Problemas con bucles repetitivos."
+          ],
+          "answer": "Procesos sin decisiones ni ciclos.",
+          "explanation": "Los diagramas secuenciales representan flujos lineales sin bifurcaciones."
+        },
+        {
+          "prompt": "¿Qué se recomienda evitar al diseñar un diagrama secuencial?",
+          "options": [
+            "Cruzar líneas de flujo.",
+            "Usar flechas verticales.",
+            "Incluir el símbolo de fin."
+          ],
+          "answer": "Cruzar líneas de flujo.",
+          "explanation": "Cruzar líneas dificulta la lectura y comprensión del diagrama."
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "title": "2.3 Flujo y Conexión",
+      "content": "<p>El <strong>flujo de conexión</strong> se define por las flechas que unen los símbolos del diagrama e indican el orden lógico en que se ejecutan las operaciones.</p><ul><li>El flujo va normalmente de arriba hacia abajo o de izquierda a derecha.</li><li>Cada bloque debe tener una entrada y una salida (excepto inicio y fin).</li><li>Los conectores se usan cuando el diagrama es extenso o continúa en otra página.</li><li>Evitar cruces entre líneas de flujo para mantener claridad visual.</li></ul>",
+      "questions": [
+        {
+          "prompt": "¿Qué indica una flecha en un diagrama de flujo?",
+          "options": [
+            "La dirección de ejecución.",
+            "El tipo de dato.",
+            "Una condición lógica."
+          ],
+          "answer": "La dirección de ejecución.",
+          "explanation": "Las flechas marcan el sentido en que se desarrolla el algoritmo."
+        },
+        {
+          "prompt": "¿Qué debe tener cada bloque en un diagrama de flujo?",
+          "options": [
+            "Una entrada y una salida.",
+            "Múltiples condiciones.",
+            "Solo una entrada."
+          ],
+          "answer": "Una entrada y una salida.",
+          "explanation": "Esto asegura un flujo lógico continuo y comprensible."
+        },
+        {
+          "prompt": "¿Cuándo se usan los conectores?",
+          "options": [
+            "Cuando el diagrama es muy largo o continúa en otra parte.",
+            "Para indicar operaciones matemáticas.",
+            "Solo al inicio del algoritmo."
+          ],
+          "answer": "Cuando el diagrama es muy largo o continúa en otra parte.",
+          "explanation": "Los conectores ayudan a mantener el orden visual en diagramas extensos."
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "title": "2.4 Diagramas con Estructuras Condicionales",
+      "content": "<p>Las <strong>estructuras condicionales</strong> se representan mediante el símbolo de decisión (rombo) y permiten que el diagrama tome distintos caminos según si una condición es verdadera o falsa.</p><p><strong>Ejemplo:</strong></p><pre><code>¿Edad >= 18?<br> ├── Sí → Mostrar \"Mayor de edad\"<br> └── No → Mostrar \"Menor de edad\"</code></pre><p>Es importante etiquetar las ramas como “Sí/No” o “Verdadero/Falso” para mantener la claridad del flujo.</p>",
+      "questions": [
+        {
+          "prompt": "¿Qué símbolo se utiliza para representar una condición?",
+          "options": [
+            "Rombo",
+            "Rectángulo",
+            "Círculo"
+          ],
+          "answer": "Rombo",
+          "explanation": "El rombo representa una pregunta o decisión en el flujo del algoritmo."
+        },
+        {
+          "prompt": "¿Cuántas salidas tiene normalmente un bloque de decisión?",
+          "options": [
+            "Dos",
+            "Una",
+            "Tres"
+          ],
+          "answer": "Dos",
+          "explanation": "Generalmente tiene dos salidas: una para Sí/Verdadero y otra para No/Falso."
+        },
+        {
+          "prompt": "¿Qué representa la salida 'No' en una decisión?",
+          "options": [
+            "La condición es falsa.",
+            "La condición es verdadera.",
+            "El fin del diagrama."
+          ],
+          "answer": "La condición es falsa.",
+          "explanation": "El camino 'No' indica que la condición no se cumple."
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "title": "2.5 Diagramas con Estructuras Repetitivas (WHILE)",
+      "content": "<p>El ciclo <strong>WHILE (Mientras)</strong> repite un conjunto de instrucciones mientras una condición sea verdadera. Se representa con un rombo de decisión y un bucle que regresa al inicio del bloque.</p><p><strong>Ejemplo:</strong></p><pre><code>Inicio<br>↓<br>Contador = 1<br>↓<br>¿Contador <= 5?<br> ├── Sí → Mostrar contador → Incrementar contador → (regresa al rombo)<br> └── No → Fin</code></pre><p>Se usa cuando no se conoce cuántas veces se repetirá el proceso.</p>",
+      "questions": [
+        {
+          "prompt": "¿Qué característica tiene el ciclo WHILE?",
+          "options": [
+            "Repite instrucciones mientras la condición sea verdadera.",
+            "Se ejecuta un número fijo de veces.",
+            "Solo se usa una vez por algoritmo."
+          ],
+          "answer": "Repite instrucciones mientras la condición sea verdadera.",
+          "explanation": "El ciclo WHILE depende del cumplimiento de una condición lógica."
+        },
+        {
+          "prompt": "¿Qué ocurre cuando la condición del WHILE es falsa?",
+          "options": [
+            "El ciclo termina.",
+            "El ciclo comienza nuevamente.",
+            "La condición se reinicia automáticamente."
+          ],
+          "answer": "El ciclo termina.",
+          "explanation": "Cuando la condición deja de cumplirse, el flujo continúa fuera del bucle."
+        },
+        {
+          "prompt": "¿Qué símbolo se utiliza para la condición del WHILE?",
+          "options": [
+            "Rombo",
+            "Paralelogramo",
+            "Rectángulo"
+          ],
+          "answer": "Rombo",
+          "explanation": "El rombo indica la condición de decisión que controla la repetición."
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "title": "2.6 Diagramas con Estructuras Repetitivas (FOR)",
+      "content": "<p>El ciclo <strong>FOR (Para)</strong> se utiliza cuando se conoce el número exacto de repeticiones. En el diagrama, se define una variable de control que incrementa en cada iteración hasta cumplir la condición.</p><p><strong>Ejemplo:</strong></p><pre><code>Inicio<br>↓<br>Para i = 1 hasta 5<br>   Mostrar i<br>Fin Para<br>↓<br>Fin</code></pre><p>Se usa en conteos fijos o tareas repetitivas predefinidas.</p>",
+      "questions": [
+        {
+          "prompt": "¿Cuándo se utiliza un ciclo FOR?",
+          "options": [
+            "Cuando se conoce el número de repeticiones.",
+            "Cuando la condición es desconocida.",
+            "Solo al inicio del programa."
+          ],
+          "answer": "Cuando se conoce el número de repeticiones.",
+          "explanation": "El FOR repite un bloque de instrucciones un número fijo de veces."
+        },
+        {
+          "prompt": "¿Qué elemento controla el ciclo FOR?",
+          "options": [
+            "Una variable de control.",
+            "Un símbolo de decisión.",
+            "Una función de salida."
+          ],
+          "answer": "Una variable de control.",
+          "explanation": "La variable cambia en cada iteración hasta cumplir la condición establecida."
+        },
+        {
+          "prompt": "¿Qué diferencia al FOR del WHILE?",
+          "options": [
+            "El FOR tiene un número fijo de iteraciones.",
+            "El WHILE usa una variable de control.",
+            "El FOR nunca termina."
+          ],
+          "answer": "El FOR tiene un número fijo de iteraciones.",
+          "explanation": "A diferencia del WHILE, el FOR conoce cuántas veces repetirá el proceso."
+        }
+      ]
+    }
+  ]
+}

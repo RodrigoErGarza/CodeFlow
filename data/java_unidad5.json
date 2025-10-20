@@ -1,0 +1,230 @@
+{
+  "slug": "java",
+  "number": 5,
+  "title": "Java (La Implementación Práctica II y POO)",
+  "summary": "Introducción a Java: entorno (JDK/IDE), método main y salida, variables con tipado estático, entrada con Scanner, condicionales y switch, ciclos (for/while/do-while) e inicio en POO (clases y objetos).",
+  "sections": [
+    {
+      "index": 1,
+      "title": "5.1 Entorno, main y Salida",
+      "content": "<p>Java requiere instalar el <strong>JDK</strong> y usar un IDE como IntelliJ IDEA, Eclipse o NetBeans. Todo programa debe tener una <strong>clase principal</strong> con el método <code>main</code>, punto de inicio de ejecución. Para imprimir en consola se usa <code>System.out.println()</code>.</p><p><strong>Estructura básica:</strong></p><pre><code>public class HolaMundo {\n    public static void main(String[] args) {\n        System.out.println(\"Hola, mundo!\");\n    }\n}\n</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Qué método marca el punto de inicio en un programa Java?",
+          "options": [
+            "main()",
+            "start()",
+            "begin()"
+          ],
+          "answer": "main()",
+          "explanation": "El método main(String[] args) es el punto de entrada estándar en Java."
+        },
+        {
+          "prompt": "¿Qué instrucción se usa para mostrar texto en consola?",
+          "options": [
+            "System.out.println()",
+            "Console.write()",
+            "print_text()"
+          ],
+          "answer": "System.out.println()",
+          "explanation": "System.out.println() envía una línea de texto a la salida estándar."
+        },
+        {
+          "prompt": "¿Qué herramienta es necesaria para compilar/ejecutar programas Java?",
+          "options": [
+            "JDK",
+            "SDK de Python",
+            "Node.js"
+          ],
+          "answer": "JDK",
+          "explanation": "El Java Development Kit incluye el compilador (javac) y la JVM."
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "title": "5.2 Variables y Tipado Estático",
+      "content": "<p>Java es un lenguaje <strong>fuertemente tipado</strong>: cada variable debe declararse con su tipo. Tipos comunes: <code>int</code> (entero), <code>double</code> (decimal), <code>char</code> (carácter), <code>boolean</code> (lógico) y <code>String</code> (texto, clase).</p><p><strong>Ejemplo:</strong></p><pre><code>int edad = 20;\ndouble altura = 1.75;\nString nombre = \"Luis\";\nboolean mayor = true;\n</code></pre><p><strong>Casting:</strong></p><pre><code>double x = 10.5;\nint y = (int) x; // y = 10\n</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Qué significa que Java sea fuertemente tipado?",
+          "options": [
+            "Cada variable debe tener un tipo definido.",
+            "No necesita declarar tipos.",
+            "Los tipos cambian automáticamente."
+          ],
+          "answer": "Cada variable debe tener un tipo definido.",
+          "explanation": "El compilador verifica tipos en tiempo de compilación."
+        },
+        {
+          "prompt": "¿Qué tipo se usa para texto en Java?",
+          "options": [
+            "String",
+            "Text",
+            "char[]"
+          ],
+          "answer": "String",
+          "explanation": "String es una clase de Java para manejar cadenas de caracteres."
+        },
+        {
+          "prompt": "¿Cuál es el valor de y tras el casting: double x = 5.9; int y = (int) x; ?",
+          "options": [
+            "5",
+            "6",
+            "5.9"
+          ],
+          "answer": "5",
+          "explanation": "El casting a int trunca la parte decimal."
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "title": "5.3 Entrada de Datos",
+      "content": "<p>Para leer datos por consola se usa la clase <code>Scanner</code> (del paquete <code>java.util</code>). Permite leer enteros, decimales y texto.</p><p><strong>Ejemplo:</strong></p><pre><code>import java.util.Scanner;\n\npublic class Entrada {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        System.out.print(\"Ingrese su nombre: \");\n        String nombre = sc.nextLine();\n        System.out.println(\"Hola, \" + nombre);\n    }\n}\n</code></pre><p>Métodos útiles: <code>nextLine()</code> (texto), <code>nextInt()</code> (entero), <code>nextDouble()</code> (decimal).</p>",
+      "questions": [
+        {
+          "prompt": "¿Qué clase se usa para leer datos por consola en Java?",
+          "options": [
+            "Scanner",
+            "Reader",
+            "ConsoleInput"
+          ],
+          "answer": "Scanner",
+          "explanation": "Scanner facilita la lectura desde System.in con métodos como nextLine()."
+        },
+        {
+          "prompt": "¿Qué método lee una línea completa de texto?",
+          "options": [
+            "nextLine()",
+            "readText()",
+            "scanLine()"
+          ],
+          "answer": "nextLine()",
+          "explanation": "nextLine() captura todo el texto hasta el salto de línea."
+        },
+        {
+          "prompt": "¿Qué import se requiere para usar Scanner?",
+          "options": [
+            "import java.util.Scanner;",
+            "include Scanner;",
+            "use java.Scanner;"
+          ],
+          "answer": "import java.util.Scanner;",
+          "explanation": "Scanner pertenece al paquete java.util."
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "title": "5.4 Estructuras Condicionales y switch",
+      "content": "<p>Las decisiones se implementan con <code>if</code>, <code>else if</code> y <code>else</code>. Para múltiples opciones sobre un mismo valor se usa <code>switch</code>.</p><p><strong>Ejemplo if/else:</strong></p><pre><code>int nota = 70;\nif (nota >= 90) {\n    System.out.println(\"Excelente\");\n} else if (nota >= 60) {\n    System.out.println(\"Aprobado\");\n} else {\n    System.out.println(\"Reprobado\");\n}\n</code></pre><p><strong>Ejemplo switch:</strong></p><pre><code>int dia = 3;\nswitch (dia) {\n    case 1: System.out.println(\"Lunes\"); break;\n    case 2: System.out.println(\"Martes\"); break;\n    default: System.out.println(\"Otro día\");\n}\n</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Qué palabra se usa para evaluar varias condiciones consecutivas en Java?",
+          "options": [
+            "else if",
+            "elif",
+            "elseif"
+          ],
+          "answer": "else if",
+          "explanation": "Java utiliza la forma 'else if' (dos palabras)."
+        },
+        {
+          "prompt": "¿Qué estructura permite evaluar múltiples opciones de un valor?",
+          "options": [
+            "switch",
+            "case",
+            "when"
+          ],
+          "answer": "switch",
+          "explanation": "switch selecciona un caso entre varias alternativas."
+        },
+        {
+          "prompt": "¿Qué palabra se usa para salir de un caso en un switch?",
+          "options": [
+            "break",
+            "exit",
+            "stop"
+          ],
+          "answer": "break",
+          "explanation": "break evita la caída al siguiente caso (fall-through)."
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "title": "5.5 Ciclos Repetitivos",
+      "content": "<p>Java ofrece <code>for</code>, <code>while</code> y <code>do-while</code>.</p><p><strong>for</strong> (inicialización; condición; incremento):</p><pre><code>for (int i = 1; i <= 5; i++) {\n    System.out.println(i);\n}\n</code></pre><p><strong>while</strong> (mientras la condición sea verdadera):</p><pre><code>int i = 1;\nwhile (i <= 5) {\n    System.out.println(i);\n    i++;\n}\n</code></pre><p><strong>do-while</strong> (ejecuta al menos una vez):</p><pre><code>int j = 1;\ndo {\n    System.out.println(j);\n    j++;\n} while (j <= 5);\n</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Qué bucle garantiza ejecutar el bloque al menos una vez?",
+          "options": [
+            "do-while",
+            "while",
+            "for"
+          ],
+          "answer": "do-while",
+          "explanation": "do-while evalúa la condición al final del ciclo."
+        },
+        {
+          "prompt": "¿Qué parte del for incrementa el contador?",
+          "options": [
+            "i++",
+            "i--",
+            "++i=="
+          ],
+          "answer": "i++",
+          "explanation": "El operador de incremento posterior aumenta la variable en 1."
+        },
+        {
+          "prompt": "¿Qué estructura usa la sintaxis (inicialización; condición; incremento)?",
+          "options": [
+            "for",
+            "while",
+            "loop"
+          ],
+          "answer": "for",
+          "explanation": "Es la forma clásica del bucle for en Java."
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "title": "5.6 Introducción a Clases y Objetos (POO)",
+      "content": "<p>En POO una <strong>clase</strong> define atributos y métodos; un <strong>objeto</strong> es una instancia de esa clase. Permite modelar entidades del mundo real.</p><p><strong>Ejemplo:</strong></p><pre><code>public class Persona {\n    String nombre;\n    int edad;\n    void saludar() {\n        System.out.println(\"Hola, soy \" + nombre);\n    }\n}\n\npublic class Main {\n    public static void main(String[] args) {\n        Persona p1 = new Persona();\n        p1.nombre = \"María\";\n        p1.edad = 20;\n        p1.saludar();\n    }\n}\n</code></pre>",
+      "questions": [
+        {
+          "prompt": "¿Qué representa una clase en Java?",
+          "options": [
+            "Un molde o plantilla para crear objetos.",
+            "Una variable temporal.",
+            "Un tipo de ciclo."
+          ],
+          "answer": "Un molde o plantilla para crear objetos.",
+          "explanation": "La clase define estructura y comportamiento de sus instancias."
+        },
+        {
+          "prompt": "¿Cómo se llama a la instancia de una clase?",
+          "options": [
+            "Objeto",
+            "Método",
+            "Variable"
+          ],
+          "answer": "Objeto",
+          "explanation": "Un objeto es una instancia concreta de una clase."
+        },
+        {
+          "prompt": "¿Qué palabra clave crea un nuevo objeto en Java?",
+          "options": [
+            "new",
+            "create",
+            "instance"
+          ],
+          "answer": "new",
+          "explanation": "new reserva memoria e invoca al constructor de la clase."
+        }
+      ]
+    }
+  ]
+}
