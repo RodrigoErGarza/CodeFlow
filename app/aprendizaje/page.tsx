@@ -15,8 +15,10 @@ type LessonListItem = {
 };
 
 type ProgressSummary = {
-  completedLessonIds: string[];
+  completedUnitIds: string[];
+  percents: Array<{ unitId: string; slug: string; percent: number }>;
 };
+
 
 type UnitInfo = { percent: number };
 
@@ -50,7 +52,12 @@ export default function AprendizajePage() {
       const lData = await lRes.json();
       const pData: ProgressSummary = await pRes.json();
       setLessons(lData.items || []);
-      setCompleted(new Set(pData.completedLessonIds || []));
+      setCompleted(new Set(pData.completedUnitIds || []));
+      const nextUnitInfo: Record<string, { percent: number }> = {};
+      for (const p of pData.percents || []) {
+        nextUnitInfo[p.slug] = { percent: p.percent ?? 0 };
+      }
+      setUnitInfo(nextUnitInfo);
     } finally {
       setLoading(false);
     }
@@ -85,12 +92,65 @@ export default function AprendizajePage() {
   }, [openSlug]);
 
   // ---- progreso global (conteo de lecciones completas) ----
+  // ⬇️ Reemplaza tu useMemo de progressPct por este
   const progressPct = useMemo(() => {
     if (!lessons.length) return 0;
     let done = 0;
-    for (const l of lessons) if (completed.has(l.id)) done++;
+    for (const l of lessons) {
+      const p = unitInfo[l.slug]?.percent ?? 0;
+      if (p >= 100 || completed.has(l.id)) done++;
+    }
     return Math.round((done / lessons.length) * 100);
-  }, [completed, lessons]);
+  }, [lessons, unitInfo, completed]);
+
+  // ⬇️ NUEVO: trae el % de TODAS las unidades para que las tarjetas muestren "Completada" sin abrir la unidad
+  useEffect(() => {
+    if (!lessons.length) return;
+
+    let canceled = false;
+
+    async function fetchPercents() {
+      try {
+        const pairs = await Promise.all(
+          lessons.map(async (l) => {
+            try {
+              const r = await fetch(`/api/units/${l.slug}`, { cache: "no-store" });
+              const d = await r.json();
+              return [l.slug, Number(d?.percent ?? 0)] as const;
+            } catch {
+              return [l.slug, 0] as const;
+            }
+          })
+        );
+
+        if (canceled) return;
+        setUnitInfo((prev) => {
+          const next = { ...prev };
+          for (const [slug, percent] of pairs) next[slug] = { percent };
+          return next;
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+
+    fetchPercents();
+
+    // refresca cuando vuelves a la pestaña/ventana
+    function onFocus() { fetchPercents(); }
+    function onVisible() { if (document.visibilityState === "visible") fetchPercents(); }
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      canceled = true;
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [lessons]);
+
+
 
   // ---- navegación slide-over ----
   function pushOpen(slug: string) {
@@ -163,9 +223,8 @@ export default function AprendizajePage() {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {lessons.map((l) => {
-            const percentForCard = unitInfo[l.slug]?.percent ?? null;
-            const done =
-              percentForCard != null ? percentForCard >= 100 : completed.has(l.id);
+            const percentForCard = unitInfo[l.slug]?.percent ?? 0;
+            const done = percentForCard >= 100 || completed.has(l.id);
 
             return (
               <button
@@ -174,6 +233,7 @@ export default function AprendizajePage() {
                 className="text-left rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition p-4 group"
               >
                 <div className="text-sm opacity-70 mb-2">Unidad {l.number}</div>
+
                 <div className="h-24 flex items-center justify-center rounded-xl bg-black/20 border border-white/10">
                   <div className="text-4xl">🧩</div>
                 </div>
@@ -181,18 +241,16 @@ export default function AprendizajePage() {
                 <div className="mt-3 font-medium line-clamp-2">{l.title}</div>
                 <p className="mt-1 text-sm opacity-80 line-clamp-2">{l.description}</p>
 
-                {/* mini barra y % si ya lo tenemos */}
-                {percentForCard != null && (
-                  <>
-                    <div className="mt-3 h-1.5 rounded bg-white/10 overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-cyan-400 to-blue-500"
-                        style={{ width: `${percentForCard}%` }}
-                      />
-                    </div>
-                    <div className="mt-1 text-xs opacity-70">{percentForCard}%</div>
-                  </>
-                )}
+                {/* barra de % en la tarjeta */}
+                <div className="mt-3">
+                  <div className="w-full h-1.5 rounded bg-white/10 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-cyan-400 to-blue-500"
+                      style={{ width: `${percentForCard}%` }}
+                    />
+                  </div>
+                  <div className="mt-1 text-xs opacity-70">{percentForCard}%</div>
+                </div>
 
                 <div className="mt-3 flex items-center justify-between">
                   <span
@@ -298,14 +356,7 @@ export default function AprendizajePage() {
           )}
         </div>
 
-        {/* Bloque de “lectura/teoría” */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
-          <div className="text-sm opacity-70">Contenido</div>
-          <p className="opacity-90">
-            Aquí puedes colocar el resumen, ejemplos y mini-ejercicios de la lección.
-            Este panel se mantiene en la misma pantalla, sin navegar a otra ruta.
-          </p>
-        </div>
+        
       </section>
 
       {/* Índice / Lecciones de la unidad */}

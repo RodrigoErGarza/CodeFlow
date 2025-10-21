@@ -2,181 +2,206 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import Sidebar from "@/app/components/Sidebar";
+import Link from "next/link";
 
-type ChallengeItem = {
+type Challenge = {
+  id: string;
   slug: string;
   title: string;
-  language: "python" | "java" | "pseint";
-  lessonId: string; // se habilita si esa lección está completa
+  description: string;
+  language: string;
+  starterCode?: string | null;
+  testsJson?: string | null; // aquí viene el meta.requiresUnitNumber
 };
 
-type ProgressSummary = {
-  completedLessonIds: string[];
+type LessonListItem = {
+  id: string;
+  number: number; // 1..5
+  slug: string;
+  title: string;
+  description: string;
 };
 
-type Tab = "all" | "available" | "locked";
+function normalizeUnitsSummary(d: any): Record<string, number> {
+  if (!d) return {};
+  if (d.perUnitPercent && typeof d.perUnitPercent === "object") {
+    return d.perUnitPercent as Record<string, number>;
+  }
+  if (d.byUnitNumber && typeof d.byUnitNumber === "object") {
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(d.byUnitNumber)) {
+      out[String(k)] = Number(v) || 0;
+    }
+    return out;
+  }
+  return {};
+}
+
+function safeParse<T = any>(s: string | null | undefined): T | null {
+  if (!s) return null;
+  try { return JSON.parse(s) as T; } catch { return null; }
+}
 
 export default function RetosPage() {
-  const [challenges, setChallenges] = useState<ChallengeItem[]>([]);
-  const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<Tab>("all");
-
-  async function load() {
-    setLoading(true);
-    try {
-      const [cRes, pRes] = await Promise.all([
-        fetch("/api/challenges", { cache: "no-store" }),
-        fetch("/api/progress/summary", { cache: "no-store" }),
-      ]);
-      const cData = await cRes.json();
-      const pData: ProgressSummary = await pRes.json();
-      setChallenges(cData.items || []);
-      setCompletedLessons(new Set(pData.completedLessonIds || []));
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [err, setErr] = useState<string | null>(null);
+  const [items, setItems] = useState<Challenge[]>([]);
+  const [perUnitPercent, setPerUnitPercent] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    load();
+    let alive = true;
+
+    (async () => {
+      setLoading(true);
+      setErr(null);
+      try {
+        // 1) Retos y unidades (para mapear number -> slug)
+        const [cRes, lRes] = await Promise.all([
+          fetch("/api/challenges", { cache: "no-store" }),
+          fetch("/api/lessons", { cache: "no-store" }),
+        ]);
+        if (!cRes.ok) throw new Error("No se pudo cargar /api/challenges");
+        if (!lRes.ok) throw new Error("No se pudo cargar /api/lessons");
+
+        const challenges: Challenge[] = await cRes.json();
+        const lessonsPayload = await lRes.json();
+        const lessons: LessonListItem[] = lessonsPayload?.items ?? [];
+
+        if (!alive) return;
+        setItems(challenges);
+
+        // 2) Intento A: /api/progress/units-summary (si existe/funciona)
+        let per: Record<string, number> = {};
+        try {
+          const uRes = await fetch("/api/progress/units-summary", { cache: "no-store" });
+          if (uRes.ok) {
+            const raw = await uRes.json();
+            per = normalizeUnitsSummary(raw);
+          }
+        } catch {
+          // ignoramos; pasamos a fallback
+        }
+
+        // 3) Fallback: pedir % real por slug usando /api/units/[slug]
+        //    — solo para las unidades que realmente piden los retos.
+        if (Object.keys(per).length === 0) {
+          const numToSlug = new Map<number, string>(
+            lessons.map((l) => [l.number, l.slug])
+          );
+
+          // set de números de unidad requeridos por los retos
+          const reqNums = new Set<number>();
+          for (const c of challenges) {
+            const meta = safeParse<{ meta?: { requiresUnitNumber?: number } }>(c.testsJson);
+            const req = meta?.meta?.requiresUnitNumber;
+            if (req && typeof req === "number") reqNums.add(req);
+          }
+
+          // si no hubo ninguno, no hay nada que desbloquear por % (todos libres)
+          const fetches: Array<Promise<void>> = [];
+          const tmp: Record<string, number> = {};
+
+          for (const n of reqNums) {
+            const slug = numToSlug.get(n);
+            if (!slug) { tmp[String(n)] = 0; continue; }
+
+            fetches.push(
+              (async () => {
+                try {
+                  const r = await fetch(`/api/units/${slug}`, { cache: "no-store" });
+                  if (r.ok) {
+                    const d = await r.json();
+                    tmp[String(n)] = Number(d?.percent ?? 0) || 0;
+                  } else {
+                    tmp[String(n)] = 0;
+                  }
+                } catch {
+                  tmp[String(n)] = 0;
+                }
+              })()
+            );
+          }
+          await Promise.all(fetches);
+          per = tmp;
+        }
+
+        if (!alive) return;
+        setPerUnitPercent(per);
+      } catch (e: any) {
+        if (!alive) return;
+        setErr(e?.message ?? "Error al cargar retos");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+
+    return () => { alive = false; };
   }, []);
 
-  const decorated = useMemo(() => {
-    return challenges.map((ch) => ({
-      ...ch,
-      unlocked: completedLessons.has(ch.lessonId),
-    }));
-  }, [challenges, completedLessons]);
+  const cards = useMemo(() => {
+    const per = perUnitPercent || {};
+    return items.map((c) => {
+      const meta = safeParse<{ meta?: { requiresUnitNumber?: number } }>(c.testsJson ?? null);
+      const req = meta?.meta?.requiresUnitNumber ?? null;
 
-  const filtered = useMemo(() => {
-    if (tab === "available") return decorated.filter((c) => c.unlocked);
-    if (tab === "locked") return decorated.filter((c) => !c.unlocked);
-    return decorated;
-  }, [decorated, tab]);
+      const requiredPct = req ? (per[String(req)] ?? 0) : 100;
+      const unlocked = requiredPct >= 100;
 
-  const groupedByLanguage = useMemo(() => {
-    return filtered.reduce((acc: Record<string, typeof filtered>, ch) => {
-      (acc[ch.language] ||= []).push(ch);
-      return acc;
-    }, {});
-  }, [filtered]);
+      const reqText = req ? `Requiere: Unidad ${req}` : "Libre";
+      const percentText = req ? `${requiredPct}% de la unidad` : undefined;
+
+      return { ...c, req, unlocked, reqText, percentText };
+    });
+  }, [items, perUnitPercent]);
 
   return (
     <div className="flex">
       <Sidebar />
-      <main className="flex-1 p-6 space-y-5">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">Retos de Programación</h1>
-          <button
-            onClick={load}
-            className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20"
-          >
-            Actualizar
-          </button>
-        </div>
+      <main className="flex-1 p-6">
+        <h1 className="text-3xl font-semibold mb-6">Retos de Programación</h1>
 
-        {/* Filtros (tabs) */}
-        <div className="flex gap-2">
-          {(
-            [
-              ["all", "Todos"],
-              ["available", "Disponibles"],
-              ["locked", "Bloqueados"],
-            ] as [Tab, string][]
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className={`px-3 py-1 rounded border ${
-                tab === key
-                  ? "border-cyan-400/40 bg-cyan-500/10"
-                  : "border-white/10 hover:bg-white/10"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {loading && <div className="opacity-70 text-sm">Cargando…</div>}
-        {!loading && filtered.length === 0 && (
-          <div className="opacity-70 text-sm">No hay retos para este filtro.</div>
+        {loading && <div className="opacity-70">Cargando…</div>}
+        {!loading && err && <div className="text-red-400">{err}</div>}
+        {!loading && !err && cards.length === 0 && (
+          <div className="opacity-70">No hay retos por ahora.</div>
         )}
 
-        {/* Grupos por lenguaje */}
-        <div className="space-y-8">
-          {Object.entries(groupedByLanguage).map(([language, items]) => (
-            <section key={language} className="space-y-3">
-              <div className="text-sm opacity-70 uppercase tracking-wide">
-                {language}
-              </div>
+        {!loading && !err && cards.length > 0 && (
+          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {cards.map((c) => (
+              <div key={c.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="text-sm opacity-70 mb-2 flex items-center justify-between">
+                  <span>{c.reqText}</span>
+                  {c.percentText && <span className="opacity-60">{c.percentText}</span>}
+                </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {items.map((ch) => (
-                  <div
-                    key={ch.slug}
-                    className={`rounded-2xl border p-4 transition ${
-                      ch.unlocked
-                        ? "border-white/10 bg-white/5 hover:bg-white/10"
-                        : "border-white/5 bg-black/30"
+                <div className="text-lg font-medium mb-1 line-clamp-2">{c.title}</div>
+                <p className="text-sm opacity-85 line-clamp-3">{c.description}</p>
+
+                <div className="mt-3 flex items-center justify-between">
+                  <span
+                    className={`text-xs px-2 py-1 rounded ${
+                      c.unlocked ? "bg-emerald-500/20 text-emerald-300" : "bg-white/10"
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-xs opacity-70 mb-1">Reto</div>
-                        <div className="font-medium">{ch.title}</div>
-                      </div>
-                      <span
-                        className={`text-xs px-2 py-1 rounded ${
-                          ch.unlocked
-                            ? "bg-emerald-500/20 text-emerald-300"
-                            : "bg-white/10"
-                        }`}
-                      >
-                        {ch.unlocked ? "Disponible" : "Bloqueado"}
-                      </span>
-                    </div>
+                    {c.unlocked ? "Desbloqueado" : "Bloqueado"}
+                  </span>
 
-                    <div className="mt-3 flex items-center justify-between">
-                      {/* mini “ring” de estado (placeholder) */}
-                      <div className="w-10 h-10 rounded-full border-2 border-white/15 grid place-items-center">
-                        <span className="text-xs opacity-70">1</span>
-                      </div>
-
-                      <div className="flex gap-2">
-                        {ch.unlocked ? (
-                          <Link
-                            href={`/retos/${ch.slug}`}
-                            className="px-3 py-1 rounded border border-white/10 bg-white/10 hover:bg-white/20 text-sm"
-                          >
-                            Abrir
-                          </Link>
-                        ) : (
-                          <button
-                            disabled
-                            className="px-3 py-1 rounded border border-white/10 bg-white/10 opacity-60 text-sm"
-                            title="Completa la lección relacionada para desbloquear"
-                          >
-                            Bloqueado
-                          </button>
-                        )}
-                        <Link
-                          href="/aprendizaje"
-                          className="px-3 py-1 rounded border border-white/10 bg-white/10 hover:bg-white/20 text-sm"
-                        >
-                          Ir a lecciones
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  {c.unlocked ? (
+                    <Link href={`/retos/${c.slug}`} className="px-3 py-1.5 rounded bg-indigo-600 text-white text-sm">
+                      Abrir
+                    </Link>
+                  ) : (
+                    <button disabled className="px-3 py-1.5 rounded bg-white/10 text-sm opacity-60 cursor-not-allowed">
+                      Abrir
+                    </button>
+                  )}
+                </div>
               </div>
-            </section>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );
