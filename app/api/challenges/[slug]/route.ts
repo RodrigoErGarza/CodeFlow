@@ -1,31 +1,40 @@
-// app/api/challenges/[slug]/route.ts
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
-const CURRENT_USER_ID = "demo-user";
+import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
-export async function GET(_: Request, { params }: { params: { slug: string } }) {
-  const c = await prisma.challenge.findUnique({ where: { slug: params.slug }});
-  if (!c) return NextResponse.json({ error: "Not found" }, { status: 404 });
+export async function GET(
+  _req: Request,
+  { params }: { params: { slug: string } }
+) {
+  const session = await getServerSession(authOptions as any);
+  const userId = (session as any)?.user?.id ?? "demo-user";
 
-  let meta: any = {};
-  try { meta = JSON.parse(c.testsJson || "{}"); } catch {}
+  const challenge = await prisma.challenge.findUnique({
+    where: { slug: params.slug },
+  });
+  if (!challenge) {
+    return NextResponse.json({ error: "Challenge not found" }, { status: 404 });
+  }
 
-  // estado (aprobado?)
-  const ok = await prisma.challengeAttempt.findFirst({
-    where: { userId: CURRENT_USER_ID, challengeId: c.id, isCorrect: true },
-    orderBy: { createdAt: "desc" }
+  let meta: any = null;
+  try { meta = challenge.testsJson ? JSON.parse(challenge.testsJson) : null; } catch {}
+
+  const last = await prisma.challengeAttempt.findFirst({
+    where: { userId, challengeId: challenge.id },
+    orderBy: { createdAt: "desc" },
+    select: { status: true },
   });
 
   return NextResponse.json({
-    id: c.id,
-    slug: c.slug,
-    title: c.title,
-    description: c.description,
-    language: c.language,
+    id: challenge.id,
+    slug: challenge.slug,
+    title: challenge.title,
+    description: challenge.description,
+    language: challenge.language,
     requiresUnitNumber: meta?.meta?.requiresUnitNumber ?? null,
-    passed: !!ok,
-    // No devolvemos rules completas para no revelar la “solución”, solo hint opcional
     hint: meta?.meta?.hint ?? null,
+    starterCode: challenge.starterCode ?? "",
+    passed: last?.status === "PASSED",
   });
 }

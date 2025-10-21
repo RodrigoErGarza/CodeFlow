@@ -2,7 +2,7 @@
 "use client";
 import Sidebar from "@/app/components/Sidebar";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 type ChallengeDetail = {
   id: string;
@@ -13,75 +13,67 @@ type ChallengeDetail = {
   requiresUnitNumber: number | null;
   passed: boolean;
   hint: string | null;
+  starterCode?: string | null; // si lo tienes
 };
-
 
 export default function RetoDetailPage() {
   const { slug } = useParams<{ slug: string }>();
+  const router = useRouter();
+
   const [data, setData] = useState<ChallengeDetail | null>(null);
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
+  // cargar reto + draft
   useEffect(() => {
     (async () => {
       const r = await fetch(`/api/challenges/${slug}`, { cache: "no-store" });
       const d = await r.json();
-      if (d?.error) {
-        setData(null);
-      } else {
+      if (!d?.error) {
         setData(d);
+        const draft = localStorage.getItem(`challenge-draft:${slug}`);
+        if (draft) setCode(draft);
+        else if (d?.starterCode) setCode(d.starterCode);
       }
       setLoading(false);
     })();
   }, [slug]);
 
-  // ⬇️ Enganche mínimo al evaluador nuevo
   async function submit() {
     setSending(true);
     setFeedback(null);
     try {
-      const r = await fetch(`/api/challenges/evaluate`, {
+      const r = await fetch(`/api/challenges/${slug}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slug,      // le pasamos el slug del reto
-          code,      // el contenido del textarea
-          // language: data?.language, // opcional: el evaluador usa el del reto
-        }),
+        body: JSON.stringify({ code, language: data?.language }),
       });
-
       const d = await r.json();
+      if (!r.ok) {
+        setFeedback(`✖ ${d?.error || "Error al enviar"}`);
+      } else {
+        const lines = (d.results || []).map((x: any) => `${x.pass ? "✔" : "✖"} ${x.message}`).join("\n");
+        setFeedback(`${d.pass ? "✅ ¡Aprobado!" : "❌ No pasó todas las pruebas"}\n\n${lines}`);
 
-      if (!r.ok || !d?.ok) {
-        setFeedback(`✖ ${d?.error || "Error al evaluar"}`);
-        return;
+        // Si pasó, opcional: guardar borrador vacío y volver
+        if (d.pass) {
+          localStorage.removeItem(`challenge-draft:${slug}`);
+          // refresca /retos para que coja el nuevo resumen
+          router.push("/retos");
+          router.refresh();
+        }
       }
-
-      // Armamos un mensaje compacto con score + feedback + (opcional) hint
-      const header = d.isCorrect
-        ? `✅ ¡Correcto! Puntuación: ${d.score}%`
-        : `❌ Aún no. Puntuación: ${d.score}%`;
-
-      const fb =
-        Array.isArray(d.feedback) && d.feedback.length
-          ? `\n\n${d.feedback.map((m: string) => `• ${m}`).join("\n")}`
-          : "";
-
-      const hint = d.hint ? `\n\nPista: ${d.hint}` : "";
-
-      setFeedback(header + fb + hint);
-
-      // Si pasó, marcamos localmente el reto como aprobado (no rompemos nada)
-      if (d.isCorrect) {
-        setData((prev) => (prev ? { ...prev, passed: true } : prev));
-      }
-    } catch (e: any) {
-      setFeedback(`✖ ${e?.message || "Fallo al evaluar"}`);
     } finally {
       setSending(false);
     }
+  }
+
+  function saveAndExit() {
+    localStorage.setItem(`challenge-draft:${slug}`, code);
+    router.push("/retos");
+    router.refresh();
   }
 
   return (
@@ -99,10 +91,16 @@ export default function RetoDetailPage() {
                 <p className="opacity-80">{data.description}</p>
                 {data.hint && <p className="text-sm opacity-70 mt-1">Pista: {data.hint}</p>}
                 {data.requiresUnitNumber && (
-                  <p className="text-xs opacity-70 mt-1">
-                    Requiere Unidad {data.requiresUnitNumber} al 100%
-                  </p>
+                  <p className="text-xs opacity-70 mt-1">Requiere Unidad {data.requiresUnitNumber} al 100%</p>
                 )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={saveAndExit}
+                  className="px-3 py-2 rounded bg-white/10 hover:bg-white/15 text-sm"
+                >
+                  Guardar y salir
+                </button>
               </div>
             </header>
 
@@ -121,6 +119,12 @@ export default function RetoDetailPage() {
                     className="px-3 py-2 rounded bg-indigo-600 text-white"
                   >
                     {sending ? "Evaluando…" : "Enviar y evaluar"}
+                  </button>
+                  <button
+                    onClick={saveAndExit}
+                    className="px-3 py-2 rounded bg-white/10 hover:bg-white/15"
+                  >
+                    Guardar y salir
                   </button>
                 </div>
                 {feedback && (

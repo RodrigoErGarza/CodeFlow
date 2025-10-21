@@ -14,6 +14,7 @@ const links = [
   { href: "/retos", label: "Retos", icon: Target },               // 👈 actualizado
   { href: "/dashboard/profile", label: "Mi Perfil", icon: User },
   { href: "/dashboard/groups", label: "Grupos", icon: Users },
+  { href: "/retos/historial", label: "Historial", icon: BookOpen },
 ];
 
 
