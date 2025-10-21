@@ -37,6 +37,8 @@ model User {
   unitProgresses    UserUnitProgress[]
   sectionProgresses UserSectionProgress[]
   answers           UserAnswer[]
+  groupsCreated    Group[]  @relation("UserGroupsCreated")
+  groupMemberships GroupMember[]
 }
 
 model Snippet {
@@ -299,3 +301,31 @@ model UserAnswer {
   @@index([sectionId])
   @@index([optionId])
 }
+enum GroupRole {
+  TEACHER
+  STUDENT
+}
+
+model Group {
+  id           String        @id @default(cuid())
+  name         String
+  joinCode     String        @unique
+  createdById  String
+  createdBy   User     @relation("UserGroupsCreated", fields: [createdById], references: [id])
+  members      GroupMember[]
+  createdAt    DateTime      @default(now())
+}
+
+model GroupMember {
+  id        String    @id @default(cuid())
+  groupId   String
+  userId    String
+  role      GroupRole @default(STUDENT)
+  joinedAt  DateTime  @default(now())
+
+  group     Group     @relation(fields: [groupId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@unique([groupId, userId])
+}
+
