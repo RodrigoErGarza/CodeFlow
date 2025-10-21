@@ -23,6 +23,17 @@ type LessonListItem = {
   description: string;
 };
 
+// ⬇️ NUEVO: tipos para el summary de retos por usuario
+type ChallengeSummary = {
+  bySlug: Record<string, {
+    lastStatus: "PENDING" | "PASSED" | "FAILED";
+    lastScore: number;
+    attempts: number;
+    updatedAt: string;
+  }>;
+  totals: { completed: number; total: number };
+};
+
 function normalizeUnitsSummary(d: any): Record<string, number> {
   if (!d) return {};
   if (d.perUnitPercent && typeof d.perUnitPercent === "object") {
@@ -48,6 +59,8 @@ export default function RetosPage() {
   const [err, setErr] = useState<string | null>(null);
   const [items, setItems] = useState<Challenge[]>([]);
   const [perUnitPercent, setPerUnitPercent] = useState<Record<string, number>>({});
+  // ⬇️ NUEVO: summary local
+  const [summary, setSummary] = useState<ChallengeSummary | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -57,12 +70,19 @@ export default function RetosPage() {
       setErr(null);
       try {
         // 1) Retos y unidades (para mapear number -> slug)
-        const [cRes, lRes] = await Promise.all([
+        const [cRes, lRes, sRes] = await Promise.all([
           fetch("/api/challenges", { cache: "no-store" }),
           fetch("/api/lessons", { cache: "no-store" }),
+          fetch("/api/challenges/summary", { cache: "no-store" }), // ⬅️ NUEVO
         ]);
         if (!cRes.ok) throw new Error("No se pudo cargar /api/challenges");
         if (!lRes.ok) throw new Error("No se pudo cargar /api/lessons");
+
+        // summary es opcional: si falla, no rompemos UI
+        let challengeSummary: ChallengeSummary | null = null;
+        if (sRes.ok) {
+          challengeSummary = await sRes.json();
+        }
 
         const challenges: Challenge[] = await cRes.json();
         const lessonsPayload = await lRes.json();
@@ -70,6 +90,7 @@ export default function RetosPage() {
 
         if (!alive) return;
         setItems(challenges);
+        setSummary(challengeSummary);
 
         // 2) Intento A: /api/progress/units-summary (si existe/funciona)
         let per: Record<string, number> = {};
@@ -141,6 +162,7 @@ export default function RetosPage() {
 
   const cards = useMemo(() => {
     const per = perUnitPercent || {};
+    const s = summary?.bySlug || {};
     return items.map((c) => {
       const meta = safeParse<{ meta?: { requiresUnitNumber?: number } }>(c.testsJson ?? null);
       const req = meta?.meta?.requiresUnitNumber ?? null;
@@ -151,15 +173,27 @@ export default function RetosPage() {
       const reqText = req ? `Requiere: Unidad ${req}` : "Libre";
       const percentText = req ? `${requiredPct}% de la unidad` : undefined;
 
-      return { ...c, req, unlocked, reqText, percentText };
+      // ⬇️ NUEVO: estado por reto (si existe)
+      const st = s[c.slug];
+      const lastStatus = st?.lastStatus ?? "PENDING";
+      const lastScore = st?.lastScore ?? null;
+
+      return { ...c, req, unlocked, reqText, percentText, lastStatus, lastScore };
     });
-  }, [items, perUnitPercent]);
+  }, [items, perUnitPercent, summary]);
 
   return (
     <div className="flex">
       <Sidebar />
       <main className="flex-1 p-6">
-        <h1 className="text-3xl font-semibold mb-6">Retos de Programación</h1>
+        <h1 className="text-3xl font-semibold mb-2">Retos de Programación</h1>
+
+        {/* ⬇️ NUEVO: contador de completados */}
+        {summary?.totals && (
+          <div className="text-sm opacity-80 mb-4">
+            Completados: {summary.totals.completed} / {summary.totals.total}
+          </div>
+        )}
 
         {loading && <div className="opacity-70">Cargando…</div>}
         {!loading && err && <div className="text-red-400">{err}</div>}
@@ -178,6 +212,14 @@ export default function RetosPage() {
 
                 <div className="text-lg font-medium mb-1 line-clamp-2">{c.title}</div>
                 <p className="text-sm opacity-85 line-clamp-3">{c.description}</p>
+
+                {/* ⬇️ NUEVO: estado/puntaje (no interfiere con desbloqueo) */}
+                <div className="mt-1 text-xs opacity-70">
+                  {c.lastScore !== null && <span className="mr-2">Último puntaje: {c.lastScore}%</span>}
+                  <span>
+                    Estado: {c.lastStatus === "PASSED" ? "Aprobado" : c.lastStatus === "FAILED" ? "Con errores" : "Pendiente"}
+                  </span>
+                </div>
 
                 <div className="mt-3 flex items-center justify-between">
                   <span

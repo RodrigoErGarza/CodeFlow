@@ -15,6 +15,7 @@ type ChallengeDetail = {
   hint: string | null;
 };
 
+
 export default function RetoDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const [data, setData] = useState<ChallengeDetail | null>(null);
@@ -36,22 +37,48 @@ export default function RetoDetailPage() {
     })();
   }, [slug]);
 
+  // ⬇️ Enganche mínimo al evaluador nuevo
   async function submit() {
     setSending(true);
     setFeedback(null);
     try {
-      const r = await fetch(`/api/challenges/${slug}/submit`, {
+      const r = await fetch(`/api/challenges/evaluate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, language: data?.language }),
+        body: JSON.stringify({
+          slug,      // le pasamos el slug del reto
+          code,      // el contenido del textarea
+          // language: data?.language, // opcional: el evaluador usa el del reto
+        }),
       });
+
       const d = await r.json();
-      if (!r.ok) {
-        setFeedback(`✖ ${d?.error || "Error al enviar"}`);
-      } else {
-        const lines = (d.results || []).map((x: any) => `${x.pass ? "✔" : "✖"} ${x.message}`).join("\n");
-        setFeedback(`${d.pass ? "✅ ¡Aprobado!" : "❌ No pasó todas las pruebas"}\n\n${lines}`);
+
+      if (!r.ok || !d?.ok) {
+        setFeedback(`✖ ${d?.error || "Error al evaluar"}`);
+        return;
       }
+
+      // Armamos un mensaje compacto con score + feedback + (opcional) hint
+      const header = d.isCorrect
+        ? `✅ ¡Correcto! Puntuación: ${d.score}%`
+        : `❌ Aún no. Puntuación: ${d.score}%`;
+
+      const fb =
+        Array.isArray(d.feedback) && d.feedback.length
+          ? `\n\n${d.feedback.map((m: string) => `• ${m}`).join("\n")}`
+          : "";
+
+      const hint = d.hint ? `\n\nPista: ${d.hint}` : "";
+
+      setFeedback(header + fb + hint);
+
+      // Si pasó, marcamos localmente el reto como aprobado (no rompemos nada)
+      if (d.isCorrect) {
+        setData((prev) => (prev ? { ...prev, passed: true } : prev));
+      }
+    } catch (e: any) {
+      setFeedback(`✖ ${e?.message || "Fallo al evaluar"}`);
     } finally {
       setSending(false);
     }
