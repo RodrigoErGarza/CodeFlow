@@ -12,7 +12,7 @@ const links = [
   { href: "/dashboard/editor", label: "Generador de Flujos", icon: Code2 },
   { href: "/aprendizaje", label: "Aprendizaje", icon: BookOpen }, // 👈 actualizado
   { href: "/retos", label: "Retos", icon: Target },               // 👈 actualizado
-  { href: "/dashboard/profile", label: "Mi Perfil", icon: User },
+  { href: "/mi-perfil", label: "Mi Perfil", icon: User },
   { href: "/dashboard/groups", label: "Grupos", icon: Users },
   { href: "/retos/historial", label: "Historial", icon: BookOpen },
 ];

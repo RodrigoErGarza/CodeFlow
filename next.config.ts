@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'https://rismxzrtcbjehezfutdi.supabase.co', // <-- cambia esto
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
+  },
   /* config options here */
   webpack: (config) => {
     // Esconde warnings típicos de sourcemaps y stackframe en dev
@@ -12,6 +21,15 @@ const nextConfig: NextConfig = {
     return config;
   },
 };
+// next.config.js
+module.exports = {
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: '*.supabase.co' },
+    ],
+  },
+};
+
 
 export default nextConfig;
 

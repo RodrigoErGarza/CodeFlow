@@ -23,6 +23,11 @@ model User {
   name         String?
   role         Role     @default(STUDENT)
   passwordHash String?
+  username      String?  @unique         // si quieres manejar @nombre
+  bio           String?  @db.Text        // descripción corta
+  avatarBucket  String?                  // e.g. 'avatars'
+  avatarPath    String?                  // e.g. 'users/<userId>/avatar.png'
+  avatarUrl     String?  @db.Text        // URL pública (con signed/pública)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
