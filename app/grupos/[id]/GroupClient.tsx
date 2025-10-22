@@ -1,5 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
+import GroupReportPanel from "./GroupReportPanel";
+import MemberReportModal from "./MemberReportModal";
 
 type MemberDTO = {
   id: string; // id del GroupMember
@@ -32,6 +34,9 @@ export default function GroupClient({
 }: Props) {
   const [members, setMembers] = useState<MemberDTO[]>(initialMembers);
   const iAmTeacher = useMemo(() => meRole === "TEACHER", [meRole]);
+  const [reportUserId, setReportUserId] = useState<string | null>(null);
+  const canView = (userId: string) =>
+    meRole === "TEACHER" || (meRole === "STUDENT" && meId && meId === userId);
 
   async function removeMember(userId: string) {
     if (!isCreator) return;
@@ -150,6 +155,15 @@ export default function GroupClient({
                     <div className="font-medium">{name}</div>
                     <div className="text-xs opacity-70">{rol}</div>
                   </div>
+                  {/* Botón Ver reporte (sin romper la vista) */}
+                  {canView(m.user.id) && (
+                    <button
+                      onClick={() => setReportUserId(m.user.id)}
+                      className="px-3 py-1.5 rounded bg-white/10 text-sm hover:bg-white/15"
+                    >
+                      Ver reporte
+                    </button>
+                  )}
 
                   {/* Acción a la derecha: no modifica tu layout, solo añade un botón discreto */}
                   {showRemove && (
@@ -167,6 +181,16 @@ export default function GroupClient({
           </ul>
         )}
       </section>
+      {/* SOLO DOCENTE: métricas/reportes */}
+      {meRole === "TEACHER" && <GroupReportPanel groupId={groupid} />}
+      {/* Modal reporte individual */}
+      {reportUserId && (
+        <MemberReportModal
+          groupId={groupid}
+          userId={reportUserId}
+          onClose={() => setReportUserId(null)}
+        />
+      )}
     </div>
   );
 }

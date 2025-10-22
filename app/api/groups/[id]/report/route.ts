@@ -1,57 +1,100 @@
+// app/api/groups/[id]/report/route.ts
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
-  req: Request,
+  _req: Request,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions as any);
-  const user = (session as any)?.user;
-  if (!user) return NextResponse.json({ error: "No auth" }, { status: 401 });
+  const groupId = params.id;
 
-  const group = await prisma.group.findUnique({ where: { id: params.id } });
-  if (!group) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  const members = await prisma.groupMember.findMany({
-    where: { groupId: group.id },
-    select: { userId: true },
+  // Grupo + miembros
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    include: {
+      members: {
+        include: {
+          user: { select: { id: true, name: true, username: true, avatarUrl: true, role: true } },
+        },
+      },
+    },
   });
-  const userIds = members.map(m => m.userId);
+  if (!group) return NextResponse.json({ error: "Group not found" }, { status: 404 });
 
-  if (userIds.length === 0) {
-    return NextResponse.json({ groupId: group.id, members: 0, units: [] });
-  }
+  const students = group.members.filter(m => m.role === "STUDENT");
+  const teachers = group.members.filter(m => m.role === "TEACHER");
+  const studentIds = students.map(m => m.userId);
 
-  // agrupa por unitId (tu schema), y saca promedio de percent
-  const gb = await prisma.userUnitProgress.groupBy({
-    by: ["unitId"],
-    where: { userId: { in: userIds } },
+  // Progreso promedio por estudiante (promedio de percent de sus unidades)
+  const progressByUser = await prisma.userUnitProgress.groupBy({
+    by: ["userId"],
     _avg: { percent: true },
+    where: { userId: { in: studentIds } },
   });
 
-  // traer metadatos de las units (number, title) para presentarlo bonito
-  const unitIds = gb.map(g => g.unitId);
-  const units = await prisma.unit.findMany({
-    where: { id: { in: unitIds } },
-    select: { id: true, number: true, title: true },
-  });
-  const uMap = new Map(units.map(u => [u.id, u]));
+  const avgProgress =
+    progressByUser.length === 0
+      ? 0
+      : Math.round(
+          (progressByUser.reduce((a, b) => a + (b._avg.percent ?? 0), 0) / progressByUser.length) * 10
+        ) / 10;
 
-  const rows = gb.map(g => {
-    const u = uMap.get(g.unitId);
+  // Intentos aprobados por estudiante
+  const passedByUser = await prisma.challengeAttempt.groupBy({
+    by: ["userId"],
+    _count: { _all: true },
+    where: { userId: { in: studentIds }, isCorrect: true },
+  });
+
+  // Últimos 30 días (time-series de aprobados)
+  const since = new Date();
+  since.setDate(since.getDate() - 30);
+  const recentPasses = await prisma.challengeAttempt.findMany({
+    where: { userId: { in: studentIds }, isCorrect: true, createdAt: { gte: since } },
+    select: { createdAt: true },
+    orderBy: { createdAt: "asc" },
+  });
+  // agrega por día
+  const byDay = new Map<string, number>();
+  for (const r of recentPasses) {
+    const key = r.createdAt.toISOString().slice(0, 10);
+    byDay.set(key, (byDay.get(key) ?? 0) + 1);
+  }
+  const timeseries = Array.from(byDay.entries())
+    .map(([date, value]) => ({ date, value }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Tabla por estudiante
+  const table = students.map(s => {
+    const u = s.user;
+    const name = u.name || u.username || "Sin nombre";
+    const avg = progressByUser.find(x => x.userId === u.id)?._avg.percent ?? 0;
+    const passed = passedByUser.find(x => x.userId === u.id)?._count._all ?? 0;
     return {
-      unitId: g.unitId,
-      unitNumber: u?.number ?? null,
-      unitTitle: u?.title ?? null,
-      avgPercent: Math.round(g._avg.percent ?? 0),
+      userId: u.id,
+      name,
+      avatarUrl: u.avatarUrl,
+      role: "Estudiante",
+      avgProgress: Math.round((avg ?? 0) * 10) / 10,
+      passedAttempts: passed,
     };
-  }).sort((a, b) => (a.unitNumber ?? 0) - (b.unitNumber ?? 0));
+  });
+
+  // Top 3 por progreso
+  const topStudents = [...table]
+    .sort((a, b) => b.avgProgress - a.avgProgress)
+    .slice(0, 3);
 
   return NextResponse.json({
-    groupId: group.id,
-    members: userIds.length,
-    units: rows,
+    summary: {
+      totalMembers: group.members.length,
+      totalStudents: students.length,
+      totalTeachers: teachers.length,
+      avgProgress,
+      totalPassed: passedByUser.reduce((a, b) => a + b._count._all, 0),
+    },
+    table,
+    timeseries,
+    topStudents,
   });
 }
