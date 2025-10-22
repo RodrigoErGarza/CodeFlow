@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Home, Code2, BookOpen, Target, User, Users, LogOut } from "lucide-react";
 import Logo from "./Logo";
 
@@ -23,8 +23,47 @@ export default function Sidebar({
 }: { open?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const user = session?.user;
+  const user = session?.user as any;
+
   const [confirming, setConfirming] = useState(false);
+
+  // 1) Lo que venga en sesión
+  const avatarFromSession = useMemo<string | null>(() => {
+    return (
+      user?.avatarUrl?.trim?.() ||
+      user?.image?.trim?.() ||
+      null
+    );
+  }, [user?.avatarUrl, user?.image]);
+
+  // 2) Fallback de la API (si la sesión no lo trae)
+  const [avatarFromApi, setAvatarFromApi] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (avatarFromSession) return; // ya tengo imagen
+    let alive = true;
+    (async () => {
+      try {
+        // usa tu endpoint real si ya lo tienes
+        const r = await fetch("/api/profile/me", { cache: "no-store" });
+        if (!r.ok) throw new Error("no ok");
+        const j = await r.json();
+        if (alive) {
+          setAvatarFromApi(
+            j?.avatarUrl?.trim?.() || j?.image?.trim?.() || null
+          );
+        }
+      } catch {
+        // ignora: caerá a placeholder
+      }
+    })();
+    return () => { alive = false; };
+  }, [avatarFromSession]);
+
+  const avatarSrc =
+    avatarFromSession ||
+    avatarFromApi ||
+    "/images/avatar-placeholder.png";
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -54,9 +93,10 @@ export default function Sidebar({
         </button>
       </div>
 
+      {/* Logo centrado (no mueve el layout) */}
       <div className="absolute left-1/2 -translate-x-1/2 top-[72px] pointer-events-none">
         <img
-          src="/images/avatarsf.png"           // <-- pon aquí tu archivo
+          src="/images/avatarsf.png"
           alt="Logo organización"
           className="h-25 w-25 rounded-full object-cover
                      ring-2 ring-cyan-400/40 border border-white/10
@@ -85,9 +125,7 @@ export default function Sidebar({
             >
               <span
                 className={`absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded-full
-                transition-all ${
-                  active ? "bg-cyan-400 scale-y-100" : "bg-transparent scale-y-0"
-                }`}
+                transition-all ${active ? "bg-cyan-400 scale-y-100" : "bg-transparent scale-y-0"}`}
               />
               <Icon
                 size={18}
@@ -103,16 +141,19 @@ export default function Sidebar({
       <div className="p-4 border-t border-white/10">
         <div className="flex items-center gap-3">
           <img
-            src={(user as any)?.image || "/images/avatar-placeholder.png"}
+            src={avatarSrc}
             alt="Avatar"
             className="h-10 w-10 rounded-full object-cover border border-white/10"
-            onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/images/avatar-placeholder.png"; }}
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = "/images/avatar-placeholder.png";
+            }}
           />
           <div className="flex-1">
             <div className="text-sm font-medium truncate">
               {user?.name || "Usuario"}
             </div>
-            <div className="text-xs opacity-70">{(user as any)?.role || "STUDENT"}</div>
+            <div className="text-xs opacity-70">{user?.role || "STUDENT"}</div>
           </div>
         </div>
 
@@ -127,9 +168,7 @@ export default function Sidebar({
             </button>
           ) : (
             <div className="bg-white/5 border border-white/10 rounded-lg p-3">
-              <p className="text-xs mb-3 opacity-80">
-                ¿Seguro que deseas cerrar sesión?
-              </p>
+              <p className="text-xs mb-3 opacity-80">¿Seguro que deseas cerrar sesión?</p>
               <div className="flex gap-2">
                 <button
                   onClick={() => signOut({ callbackUrl: "/login", redirect: true })}

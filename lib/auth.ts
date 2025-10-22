@@ -69,7 +69,7 @@ export const authOptions: NextAuthOptions = {
       }
     },
 
-    async jwt({ token, user }) {
+    async jwt({ token, user, profile }) {
       // en login, 'user' viene definido: cargamos rol desde BD
       if (user) {
         const dbUser = await prisma.user.findUnique({
@@ -78,16 +78,21 @@ export const authOptions: NextAuthOptions = {
         });
         token.id = dbUser?.id || (user as any).id;
         token.role = dbUser?.role || "STUDENT";
+        token.avatarUrl =
+        (user as any).avatarUrl ??
+        (user as any).image ??
+        (profile as any)?.picture ??
+        token.avatarUrl ??
+        null;
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id;
-        // @ts-ignore
-        session.user.role = token.role;
-      }
-      return session;
+      (session.user as any).id = token.sub;
+      (session.user as any).role = (token as any).role ?? "STUDENT";
+      (session.user as any).avatarUrl =
+      (token as any).avatarUrl ?? (session.user as any).image ?? null;
+    return session;
     },
   },
   secret: process.env.AUTH_SECRET,
