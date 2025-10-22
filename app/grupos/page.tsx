@@ -64,7 +64,7 @@ export default function GroupsPage() {
 
   return (
     <div className="flex">
-      <Sidebar />
+   
 
       <main className="flex-1 p-6 space-y-6">
         <h1 className="text-3xl font-semibold">Mis Grupos</h1>

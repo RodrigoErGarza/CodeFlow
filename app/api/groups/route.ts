@@ -38,28 +38,42 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions as any);
-  const user = (session as any)?.user;
-  if (!user) return NextResponse.json({ error: "No auth" }, { status: 401 });
+  try {
+    const session = await getServerSession(authOptions as any);
+    const userId = (session as any)?.user?.id;
+    if (!userId) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
 
-  if (user.role !== "TEACHER")
-    return NextResponse.json({ error: "Solo docentes" }, { status: 403 });
+    const { name } = await req.json();
+    if (!name || typeof name !== "string") {
+      return NextResponse.json({ error: "Nombre inválido" }, { status: 400 });
+    }
 
-  const body = await req.json().catch(() => ({}));
-  const name = (body?.name || "").toString().trim();
-  if (!name) return NextResponse.json({ error: "Nombre requerido" }, { status: 400 });
+    // genera un código único de 6 caracteres
+    const joinCode = randomBytes(3).toString("hex").toUpperCase();
 
-  // generar joinCode único
-  let joinCode = genCode();
-  for (;;) {
-    const found = await prisma.group.findUnique({ where: { joinCode } });
-    if (!found) break;
-    joinCode = genCode();
+    // ✅ CREA EL GRUPO Y AGREGA AL DOCENTE COMO MIEMBRO
+    // POST /api/groups  (crear grupo)
+    const group = await prisma.group.create({
+      data: {
+        name,
+        joinCode,
+        createdById: userId,
+        members: {
+          create: { userId, role: "TEACHER" }, // ← el creador queda como miembro-docente
+        },
+      },
+      select: { id: true, name: true, joinCode: true },
+    });
+
+
+    return NextResponse.json(group);
+  } catch (e) {
+    console.error("Error creando grupo:", e);
+    return NextResponse.json(
+      { error: "Error al crear grupo" },
+      { status: 500 }
+    );
   }
-
-  const group = await prisma.group.create({
-    data: { name, joinCode, createdById: user.id },
-  });
-
-  return NextResponse.json({ ok: true, group });
 }
