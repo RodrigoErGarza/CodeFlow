@@ -5,6 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "@/app/components/Sidebar";
 import { Check, ChevronRight, X } from "lucide-react";
+import MotivationalRotator from "@/app/(app)/dashboard/MotivationalRotator";
+import { headers } from "next/headers";
+import Link from "next/link";
+
 
 type LessonListItem = {
   id: string;
@@ -211,12 +215,8 @@ export default function AprendizajePage() {
         </div>
 
         {/* Buscador sencillo */}
-        <div className="flex items-center gap-2">
-          <input
-            placeholder="Buscar unidad o tema…"
-            className="w-full max-w-xl px-3 py-2 rounded border border-white/10 bg-white/5"
-          />
-        </div>
+      
+      
 
         {/* Grid de Unidades */}
         {loading && <div className="opacity-70 text-sm">Cargando…</div>}
