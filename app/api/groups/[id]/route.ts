@@ -1,33 +1,39 @@
-// app/api/groups/[id]/route.ts
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions as any);
-  const userId = (session as any)?.user?.id;
-  if (!userId) return NextResponse.json({ error: "No auth" }, { status: 401 });
-
-  const g = await prisma.group.findUnique({
+  const group = await prisma.group.findUnique({
     where: { id: params.id },
-    select: {
-      id: true,
-      name: true,
-      joinCode: true,
-      createdById: true,
-      members: { where: { userId }, select: { role: true } },
-    },
+    select: { id: true, name: true, joinCode: true, createdById: true },
   });
+  if (!group) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json(group);
+}
 
-  if (!g) return NextResponse.json({ error: "Not found" }, { status: 404 });
+export async function DELETE(
+  _req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions as any);
+    const userId = (session as any)?.user?.id;
+    if (!userId) return NextResponse.json({ error: "No auth" }, { status: 401 });
 
-  const isTeacher = g.createdById === userId || g.members.some((m) => m.role === "TEACHER");
+    const group = await prisma.group.findUnique({ where: { id: params.id } });
+    if (!group) return NextResponse.json({ error: "Grupo no existe" }, { status: 404 });
 
-  return NextResponse.json({
-    id: g.id,
-    name: g.name,
-    isTeacher,
-    joinCode: isTeacher ? g.joinCode : null,
-  });
+    if (group.createdById !== userId) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    // Si tus relaciones no tienen cascade, borra miembros primero
+    await prisma.groupMember.deleteMany({ where: { groupId: params.id } });
+    await prisma.group.delete({ where: { id: params.id } });
+
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message ?? "Error" }, { status: 500 });
+  }
 }
