@@ -39,7 +39,7 @@ function useDebouncedCallback<T extends (...args: any[]) => void>(
   };
 }
 
-export function ClientEditorShell() {
+function ClientEditorShell() {
   // snippet
   const [code, setCode] = useState("");
   const [lang, setLang] = useState<LangKey>("python");
