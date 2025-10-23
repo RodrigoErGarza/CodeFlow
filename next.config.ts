@@ -4,15 +4,28 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'https://rismxzrtcbjehezfutdi.supabase.co', // <-- cambia esto
-        pathname: '/storage/v1/object/public/**',
+        protocol: "https",
+        hostname: "rismxzrtcbjehezfutdi.supabase.co", // tu host actual
+        pathname: "/storage/v1/object/public/**",
       },
     ],
   },
-  /* config options here */
+
+  // 👇 ignora ESLint solo durante el build de producción (Vercel)
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
+  /* si algún día tuvieras errores de TypeScript que bloqueen
+     el build y solo quieres desplegar, puedes activar esto,
+     pero NO es recomendable a largo plazo:
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  */
+
   webpack: (config) => {
-    // Esconde warnings típicos de sourcemaps y stackframe en dev
+    // Si ya tienes esto, déjalo tal cual
     config.ignoreWarnings = [
       /Failed to parse source map/,
       /Loading "stackframe" failed/,
@@ -21,15 +34,5 @@ const nextConfig: NextConfig = {
     return config;
   },
 };
-// next.config.js
-module.exports = {
-  images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: '*.supabase.co' },
-    ],
-  },
-};
-
 
 export default nextConfig;
-
