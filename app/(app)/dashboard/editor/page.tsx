@@ -618,24 +618,7 @@ export function ClientEditorShell() {
               : "Listo"}
           </span>
 
-          {selected && (
-            <div className="ml-auto flex items-center gap-2">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={!!selected.isPublic}
-                  onChange={togglePublic}
-                />
-                Público
-              </label>
-              <button
-                onClick={sharePublicLink}
-                className="px-3 py-2 rounded border border-white/10 bg-white/10 hover:bg-white/20"
-              >
-                Compartir
-              </button>
-            </div>
-          )}
+          
         </div>
 
         {/* Pestañas */}
