@@ -10,7 +10,7 @@ export type IRStep = {
 
 type Env = {
   [k: string]: any;
-  __stdout: string[];
+  __stdout: string[]; // acumulamos salida por líneas
 };
 
 function getNodeLine(n: any): number | undefined {
@@ -22,7 +22,6 @@ function getNodeLine(n: any): number | undefined {
   if (typeof n?.line === "number") return n.line;
   return undefined;
 }
-
 
 function emitStep(steps: IRStep[], env: Env, node: any) {
   const locals: Record<string, string> = {};
@@ -43,46 +42,65 @@ function emitStep(steps: IRStep[], env: Env, node: any) {
   steps.push(step);
 }
 
+/** Normaliza operadores y literales entre PSeInt/Java y JS
+ *  - Y/O/NO → &&/||/!
+ *  - VERDADERO/FALSO → true/false
+ */
+function normalizeExpr(expr: string): string {
+  return expr
+    .replace(/\bNO\b/gi, "!") // negación unaria
+    .replace(/\bY\b/gi, "&&")
+    .replace(/\bO\b/gi, "||")
+    .replace(/\bVERDADERO\b/gi, "true")
+    .replace(/\bFALSO\b/gi, "false");
+}
+
 /** Eval segura “suficiente” para UI
  *  - Soporta números, (), + - * /, comparadores, && || !,
- *  - `Y/O/NO` (PSeInt) -> && || !
- *  - strings "..." o '...'
- *  - variables del entorno simple (a-zA-Z_\\w*)
+ *  - Mapea Y/O/NO (PSeInt) a operadores JS
+ *  - Strings "..." o '...'
+ *  - Variables del entorno simple (a-zA-Z_\w*)
  */
 function evalExpr(expr: string, env: Env): any {
+  const normalized = normalizeExpr(expr);
+
   // Sustituye variables (a-zA-Z_\w*)
-  const safe = expr.replace(/[a-zA-Z_]\w*/g, (name) => {
+  const substituted = normalized.replace(/[a-zA-Z_]\w*/g, (name) => {
     if (name in env) return JSON.stringify(env[name]);
-    return name; // por si es true/false o similares
+    return name; // puede ser true/false o palabras ya normalizadas
   });
 
-  // 👇 NUEVO: quita cadenas "..." y '...' antes de validar caracteres
-  const withoutStrings = safe.replace(/"([^"\\]|\\.)*"|'([^'\\]|\\.)*'/g, '""');
+  // Quita cadenas antes de validar caracteres permitidos
+  const withoutStrings = substituted.replace(/"([^"\\]|\\.)*"|'([^'\\]|\\.)*'/g, '""');
 
-  // valida caracteres (ya sin letras dentro de comillas)
-  if (!/^[\d\s+\-*/()<>!=&|.,"']+$/i.test(withoutStrings)) {
+  // Sólo números, operadores, paréntesis, comas, puntos, comillas y espacios
+  if (!/^[\d\s+\-*/()%<>=!&|.,"']+$/i.test(withoutStrings)) {
     throw new Error("Expresión no permitida");
   }
 
-  // evalúa en sandbox acotado
+  // Evalúa en sandbox acotado
   // eslint-disable-next-line no-new-func
-  return Function(`"use strict"; return (${safe});`)();
+  return Function(`"use strict"; return (${substituted});`)();
 }
 
 export function traceIR(graph: FlowGraph): IRStep[] {
   const steps: IRStep[] = [];
-  const env: Env = {__stdout: []};
+  const env: Env = { __stdout: [] };
+
   const byId = new Map<string, any>();
   graph.nodes.forEach((n: any) => byId.set(n.id, n));
+
   const outgoing = new Map<string, any[]>();
   graph.edges.forEach((e: any) => {
     if (!outgoing.has(e.source)) outgoing.set(e.source, []);
     outgoing.get(e.source)!.push(e);
   });
 
-  const start = graph.nodes.find((n: any) => (n.type || "").toLowerCase() === "start") || graph.nodes[0];
-  let cur = start;
+  const start =
+    graph.nodes.find((n: any) => (n.type || "").toLowerCase() === "start") ||
+    graph.nodes[0];
 
+  let cur = start;
   const maxSteps = 1000;
   let guard = 0;
 
@@ -90,38 +108,47 @@ export function traceIR(graph: FlowGraph): IRStep[] {
     const t = (cur.type || "").toLowerCase();
     const label = (cur.label || "").trim();
 
+    // Snapshot antes de ejecutar el nodo (línea y locals)
     emitStep(steps, env, cur);
     if (t === "end") break;
 
     if (t === "action" || t === "" || t === "default") {
-      if (/^print\s*\(/i.test(label)) {
+      // --- Salidas en Java / PSeInt / pseudo-Python ---
+      if (/^system\.out\.println\s*\(/i.test(label)) {
+        // Java: System.out.println(expr)
+        const inside = label.replace(/^system\.out\.println\s*\(/i, "").replace(/\)\s*$/, "");
         try {
-          const inside = label.replace(/^print\s*\(/i, "").replace(/\)\s*$/, "");
           const val = evalExpr(inside, env);
-          env.stdout = (env.stdout || "") + String(val) + "\n";
+          env.__stdout.push(String(val));
+        } catch (e: any) {
+          steps.push({ error: e.message || "Error en println" });
+          break;
+        }
+      } else if (/^print\s*\(/i.test(label)) {
+        // print(expr)
+        const inside = label.replace(/^print\s*\(/i, "").replace(/\)\s*$/, "");
+        try {
+          const val = evalExpr(inside, env);
+          env.__stdout.push(String(val));
         } catch (e: any) {
           steps.push({ error: e.message || "Error en print" });
           break;
         }
       } else if (/^escribir\s+/i.test(label)) {
+        // PSeInt: Escribir expr
         const inside = label.replace(/^escribir\s+/i, "");
         try {
           const val = evalExpr(inside, env);
-          env.stdout = (env.stdout || "") + String(val) + "\n";
+          env.__stdout.push(String(val));
         } catch (e: any) {
           steps.push({ error: e.message || "Error en Escribir" });
           break;
         }
-      } else if (/^system\.out\.println\s*\(/i.test(label)) {
-        const inside = label.replace(/^system\.out\.println\s*\(/i, "").replace(/\)\s*$/, "");
-        try {
-          const val = evalExpr(inside, env);
-          env.stdout = (env.stdout || "") + String(val) + "\n";
-        } catch (e: any) {
-          steps.push({ error: e.message || "Error en println" });
-          break;
-        }
-      } else if (/<=|<-|=/.test(label)) {
+      } else if (/^leer\s+/i.test(label)) {
+        // PSeInt: Leer var  -> sin entrada interactiva; dejamos valor actual
+        // (Podrías simular un input aquí si luego lo necesitas)
+      } else if (/^([a-zA-Z_]\w*)\s*(?:<-|=)\s*(.+)$/.test(label)) {
+        // Asignación: nombre <- expr  |  nombre = expr
         const m = label.match(/^([a-zA-Z_]\w*)\s*(?:<-|=)\s*(.+)$/);
         if (m) {
           const name = m[1];
@@ -138,16 +165,28 @@ export function traceIR(graph: FlowGraph): IRStep[] {
       const outs = outgoing.get(cur.id) || [];
       const cond = label;
       let truth = false;
-      try { truth = !!evalExpr(cond, env); }
-      catch (e: any) { steps.push({ error: e.message || "Error en condición" }); break; }
+      try {
+        truth = !!evalExpr(cond, env);
+      } catch (e: any) {
+        steps.push({ error: e.message || "Error en condición" });
+        break;
+      }
 
-      const yes = outs.find((e) => (e.label || "").toLowerCase().startsWith("s")) || outs[0];
-      const no  = outs.find((e) => (e.label || "").toLowerCase().startsWith("n")) || outs[1];
+      // “Sí/No” (PSeInt) o “true/false”/“Yes/No” — elegimos por etiqueta
+      const yes =
+        outs.find((e) => (e.label || "").toLowerCase().startsWith("s")) ||
+        outs.find((e) => (e.label || "").toLowerCase().startsWith("y")) ||
+        outs[0];
+      const no =
+        outs.find((e) => (e.label || "").toLowerCase().startsWith("n")) ||
+        outs.find((e) => (e.label || "").toLowerCase().startsWith("f")) ||
+        outs[1];
 
       cur = truth ? byId.get(yes?.target) : byId.get(no?.target);
       continue;
     }
 
+    // Siguiente (primera salida por defecto)
     const outs = outgoing.get(cur.id) || [];
     cur = byId.get(outs[0]?.target);
   }

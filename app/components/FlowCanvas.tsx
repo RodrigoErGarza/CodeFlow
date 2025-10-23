@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useMemo } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useCallback } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -131,11 +131,24 @@ const InnerCanvas = forwardRef<FlowCanvasHandle, Props>(function InnerCanvas(
     fitView: () => rf.fitView({ padding: 0.2, includeHiddenNodes: true }),
   }));
 
-  function handleNodeClick(_: any, node: Node) {
-    const meta = (node?.data as any)?.meta;
-    const line = meta?.line;
-    onNodeClick?.({ id: node.id, range: line ? { start: line, end: line } : undefined });
-  }
+  const handleNodeClick = useCallback(
+    (_: any, node: Node) => {
+      const meta = (node?.data as any)?.meta;
+      const line = meta?.line;
+      onNodeClick?.({ id: node.id, range: line ? { start: line, end: line } : undefined });
+    },
+    [onNodeClick]
+  );
+
+  // memo para callbacks de minimap (evita recrearlos)
+  const miniMapStroke = useCallback(
+    (n: Node) => (n.style?.border as string) || "#666",
+    []
+  );
+  const miniMapColor = useCallback(
+    (n: Node) => (n.style?.background as string) || "#1f2937",
+    []
+  );
 
   return (
     <ReactFlow
@@ -147,10 +160,7 @@ const InnerCanvas = forwardRef<FlowCanvasHandle, Props>(function InnerCanvas(
       fitView
     >
       <Background gap={16} />
-      <MiniMap
-        nodeStrokeColor={(n) => (n.style?.border as string) || "#666"}
-        nodeColor={(n) => (n.style?.background as string) || "#1f2937"}
-      />
+      <MiniMap nodeStrokeColor={miniMapStroke} nodeColor={miniMapColor} />
       <Controls />
     </ReactFlow>
   );

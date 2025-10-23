@@ -84,6 +84,34 @@ export function ClientEditorShell() {
   const [editorKey, setEditorKey] = useState(0);
   const [highlightLine, setHighlightLine] = useState<number | null>(null);
 
+  // ——————————————————————————————————————————————————————————
+  // Normaliza frames para cerrar con “Fin del código” en vez de error final
+  function normalizeFrames(frames: Step[]): Step[] {
+    if (!frames || frames.length === 0) return frames;
+
+    const last = frames[frames.length - 1];
+    const endLikeError =
+      !!last?.error &&
+      /entrada no permitida|expresi[oó]n no permitida|end\s*of\s*input|unexpected\s*eof/i.test(
+        last.error
+      );
+
+    if (endLikeError) {
+      const safeLast: Step = {
+        ...last,
+        error: undefined,
+        stdout: [...(last.stdout ?? []), "Fin del código"],
+      };
+      return [...frames.slice(0, -1), safeLast];
+    }
+
+    if (!last?.error && !(last?.stdout && last.stdout.join("").trim().length)) {
+      return [...frames, { stdout: ["Fin del código"] }];
+    }
+
+    return frames;
+  }
+  // ——————————————————————————————————————————————————————————
 
   function showMsg(text: string) {
     setMsg(text);
@@ -193,12 +221,12 @@ export function ClientEditorShell() {
   }, [currentStep?.line, tab]);
   
   useEffect(() => {
-  if (currentStep?.line != null) {
-    setHighlightLine(currentStep.line);
-  } else {
-    setHighlightLine(null);
-  }
-}, [currentStep?.line, simIndex]);
+    if (currentStep?.line != null) {
+      setHighlightLine(currentStep.line);
+    } else {
+      setHighlightLine(null);
+    }
+  }, [currentStep?.line, simIndex]);
 
   // cargar uno
   async function loadItem(id: string) {
@@ -297,7 +325,7 @@ export function ClientEditorShell() {
     try {
       if (lang === "python") {
         const frames = await tracePython(code);
-        setSimSteps(frames);
+        setSimSteps(normalizeFrames(frames));   // 👈 cierra con “Fin del código”
         if (frames.length === 0) showMsg("No hubo líneas ejecutadas.");
         setTab("simulate");
         return;
@@ -318,7 +346,7 @@ export function ClientEditorShell() {
       }
 
       const frames = traceIR(g!);
-      setSimSteps(frames);
+      setSimSteps(normalizeFrames(frames));     // 👈 cierra con “Fin del código”
       if (frames.length === 0) showMsg("No hubo pasos en la simulación.");
       setTab("simulate");
     } catch (e: any) {
@@ -326,10 +354,10 @@ export function ClientEditorShell() {
     }
   }
   function findNodeIdByLine(g: FlowGraph | null, line?: number | null): string | null {
-  if (!g || line == null) return null;
-  const n = (g.nodes as any[]).find(n => n?.meta?.line === line);
-  return n?.id || null;
-}
+    if (!g || line == null) return null;
+    const n = (g.nodes as any[]).find(n => n?.meta?.line === line);
+    return n?.id || null;
+  }
 
   function stepNext() {
     setSimIndex((i) => Math.min(i + 1, Math.max(0, simSteps.length - 1)));
@@ -364,26 +392,25 @@ export function ClientEditorShell() {
   }, [playing, simSteps.length]);
 
   useEffect(() => {
-  if (tab !== "simulate") return;
-  const step = currentStep;
-  if (!step) return;
+    if (tab !== "simulate") return;
+    const step = currentStep;
+    if (!step) return;
 
-  // 1) editor: resaltar línea si existe
-  if (step.line != null) {
-    setFocusRange({ start: step.line, end: step.line });
-  }
+    // 1) editor: resaltar línea si existe
+    if (step.line != null) {
+      setFocusRange({ start: step.line, end: step.line });
+    }
 
-  // 2) diagrama: resaltar nodo (por nodeId directo o por línea)
-  let nid: string | null = null;
-  if (step.nodeId) nid = step.nodeId;
-  else nid = findNodeIdByLine(graph, step.line);
+    // 2) diagrama: resaltar nodo (por nodeId directo o por línea)
+    let nid: string | null = null;
+    if (step.nodeId) nid = step.nodeId;
+    else nid = findNodeIdByLine(graph, step.line);
 
-  setSelectedNodeId(nid);
+    setSelectedNodeId(nid);
 
-  // (opcional) centrar/fit si estás en Diagrama
-  // if (nid && tab === "diagram") flowRef.current?.fitView?.();
-
-}, [simIndex, currentStep, tab, graph]);
+    // // opcional: centrar/fit si estás en Diagrama
+    // if (nid && tab === "diagram") flowRef.current?.fitView?.();
+  }, [simIndex, currentStep, tab, graph]);
 
   // auto-compila al ir a Diagrama
   useEffect(() => {
@@ -502,7 +529,6 @@ export function ClientEditorShell() {
 
   const selected = selectedId ? items.find((i) => i.id === selectedId) : null;
 
-
   return (
     <div className="grid grid-cols-12 gap-4">
       {/* Lateral */}
@@ -601,7 +627,7 @@ export function ClientEditorShell() {
             className="px-3 py-2 rounded border border-white/10 bg-white/5 w-72"
             placeholder="Título del snippet"
           />
-        <button
+          <button
             onClick={newSnippet}
             className="px-3 py-2 rounded bg-white/10 hover:bg-white/20 border border-white/10"
           >
@@ -617,8 +643,6 @@ export function ClientEditorShell() {
               ? `Guardado a las ${lastSavedAt}`
               : "Listo"}
           </span>
-
-          
         </div>
 
         {/* Pestañas */}
@@ -655,11 +679,13 @@ export function ClientEditorShell() {
             key={editorKey}
             initialCode={code}
             initialLang={lang}
-            // enfocar rango si viene de un nodo clicado
-            {...({ focusRange } as any)}
+            {...({ focusRange } as any)} // enfocar rango si viene de un nodo
             onChange={(c, l) => {
-              setCode(c);
-              setLang(l as LangKey);
+              // Diferimos para evitar el warning “Cannot update a component …”
+              queueMicrotask(() => {
+                setCode(c);
+                setLang(l as LangKey);
+              });
             }}
           />
         )}
@@ -755,11 +781,11 @@ export function ClientEditorShell() {
         {tab === "simulate" && (
           <>
             <CodeEditor
-              key={`sim-${selectedId ?? "new"}-${lang}`}// 👈 fuerza refresh limpio del Monaco en esta pestaña
+              key={`sim-${selectedId ?? "new"}-${lang}`} // fuerza refresh limpio del Monaco en esta pestaña
               initialCode={code}
               initialLang={lang}
               readOnly
-              {...({ highlightLine} as any)}
+              {...({ highlightLine } as any)}
             />
 
             <div className="flex items-center gap-2">
@@ -806,7 +832,6 @@ export function ClientEditorShell() {
             </div>
           </>
         )}
-
 
         {msg && <div className="text-sm opacity-80">{msg}</div>}
       </section>
