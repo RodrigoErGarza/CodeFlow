@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  
   const item = await prisma.snippet.findFirst({
     where: { id: params.id, isPublic: true, deletedAt: null },
     select: { id: true, title: true, code: true, language: true, updatedAt: true },

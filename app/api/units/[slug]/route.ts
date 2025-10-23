@@ -1,12 +1,13 @@
 // app/api/units/[slug]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserIdOrThrow } from "@/lib/auth";
 
 export async function GET(
-  _req: Request,
+  _req: NextRequest,
   { params }: { params: { slug: string } }
 ) {
+  const { slug } = params;
   try {
     const userId = await getUserIdOrThrow();
 
