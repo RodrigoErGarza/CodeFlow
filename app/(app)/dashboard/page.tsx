@@ -45,6 +45,7 @@ export default async function DashboardPage() {
   const totalAttempts = stats?.totalAttempts ?? 0;
   const completedUnits = progresoUnidades?.completedUnits ?? 0;
   const TOTAL_UNITS = progresoUnidades?.totalUnits ?? 5; // por defecto 5 unidades
+  
 
   return (
     <div className="p-6">

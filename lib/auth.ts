@@ -133,26 +133,36 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account, profile }) {
       try {
         if (account?.provider === "google") {
-          const email = (profile?.email || user?.email || "").toString().trim().toLowerCase();
+          const email = (profile?.email || user?.email || "")
+            .toString()
+            .trim()
+            .toLowerCase();
+
           log("callback.signIn:google", { email });
 
           if (!email) {
             warn("callback.signIn:google:no-email");
-            return false;
+            return false; // aborta OAuth si algo viene mal
           }
 
+          // ¿El usuario ya existe?
           const existing = await prisma.user.findUnique({
             where: { email },
-            select: { id: true },
+            select: { id: true, role: true },
           });
 
           if (!existing) {
-            log("callback.signIn:new-google-user → /onboarding/role", { email });
-            return "/onboarding/role";
+            // Usuario nuevo → deja que NextAuth cree la sesión
+            // y maneja el redireccionamiento en la UI/guard del dashboard.
+            log("callback.signIn:new-google-user (no redirect here)", { email });
+
+            // (Opcional, suave) si quieres dejar una pista para la UI:
+            // try { cookies().set("cf_needs_onboarding", "1", { path: "/", maxAge: 600 }); } catch {}
           }
         }
+
         log("callback.signIn:ok");
-        return true;
+        return true; // **Clave:** permitir que la sesión se cree y finalice el OAuth
       } catch (e) {
         errlog("callback.signIn:error", e);
         return false;
