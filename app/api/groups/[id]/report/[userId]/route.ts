@@ -1,12 +1,12 @@
 // app/api/groups/[id]/report/[userId]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string; userId: string } }
-) {
-  const { userId } = params;
+// En Next 15, el 2º argumento llega como Promise y hay que esperarlo.
+type Ctx = { params: Promise<{ id: string; userId: string }> };
+
+export async function GET(_req: NextRequest, { params }: Ctx) {
+  const { id, userId } = await params; // id no se usa pero lo dejamos por consistencia
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -16,7 +16,12 @@ export async function GET(
 
   const units = await prisma.userUnitProgress.findMany({
     where: { userId },
-    select: { unitId: true, percent: true, updatedAt: true, unit: { select: { title: true, number: true } } },
+    select: {
+      unitId: true,
+      percent: true,
+      updatedAt: true,
+      unit: { select: { title: true, number: true } },
+    },
     orderBy: { updatedAt: "desc" },
   });
 
@@ -28,18 +33,25 @@ export async function GET(
   });
 
   const passed = attempts.filter(a => a.isCorrect).length;
-  const avgProgress = units.length === 0 ? 0 : Math.round((units.reduce((a,b)=>a+(b.percent??0),0)/units.length)*10)/10;
+  const avgProgress =
+    units.length === 0
+      ? 0
+      : Math.round(
+          (units.reduce((a, b) => a + (b.percent ?? 0), 0) / units.length) * 10
+        ) / 10;
 
-  // Serie diaria para gráfico (últimos 30 días)
+  // Serie diaria (últimos 30 días)
   const since = new Date();
   since.setDate(since.getDate() - 30);
   const recent = attempts.filter(a => a.createdAt >= since && a.isCorrect);
   const byDay = new Map<string, number>();
   for (const a of recent) {
-    const key = a.createdAt.toISOString().slice(0,10);
+    const key = a.createdAt.toISOString().slice(0, 10);
     byDay.set(key, (byDay.get(key) ?? 0) + 1);
   }
-  const timeseries = Array.from(byDay.entries()).map(([date,value])=>({date,value})).sort((a,b)=>a.date.localeCompare(b.date));
+  const timeseries = Array.from(byDay.entries())
+    .map(([date, value]) => ({ date, value }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   const summaryRow = {
     name: user.name || user.username || "Sin nombre",
@@ -55,8 +67,8 @@ export async function GET(
       role: user.role === "TEACHER" ? "Docente" : "Estudiante",
       avatarUrl: user.avatarUrl,
     },
-    summaryRow,        // <-- para exportar con columnas en ES
-    units,             // detalle por unidad
-    timeseries,        // para línea de tiempo
+    summaryRow,  // para exportar con columnas en ES
+    units,       // detalle por unidad
+    timeseries,  // línea de tiempo
   });
 }
