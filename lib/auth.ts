@@ -22,11 +22,13 @@ declare module "next-auth" {
 }
 declare module "next-auth/jwt" {
   interface JWT {
-    id: string;
-    role: Role;
+    /** Usa opcional para evitar conflicto con otras declaraciones */
+    id?: string;
+    role?: Role;
     avatarUrl?: string | null;
   }
 }
+
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
