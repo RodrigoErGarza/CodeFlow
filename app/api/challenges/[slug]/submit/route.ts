@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+// app/api/challenges/[slug]/submit/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserId } from "@/lib/getCurrentUserId";
 
@@ -21,7 +22,7 @@ function runTests(code: string, tests: TestsJson | null) {
 
   for (const rule of tests.rules) {
     if (rule.type === "contains") {
-      const ok = rule.tokens.every(t => code.includes(t));
+      const ok = rule.tokens.every((t) => code.includes(t));
       results.push({
         pass: ok,
         message: ok
@@ -42,17 +43,18 @@ function runTests(code: string, tests: TestsJson | null) {
     }
   }
 
-  const pass = results.every(r => r.pass);
+  const pass = results.every((r) => r.pass);
   return { pass, results };
 }
 
-export async function POST(
-  req: Request,
-  { params }: { params: { slug: string } }
-) {
-  const userId = await getCurrentUserId();
+// 👇 Next 15: params es una *Promise* y hay que tiparla y hacer await
+type Ctx = { params: Promise<{ slug: string }> };
 
-  const slug = params.slug;
+export async function POST(req: NextRequest, { params }: Ctx) {
+  const { slug } = await params; // ← obligatorio en Next 15
+
+  const userId = (await getCurrentUserId()) ?? "demo-user";
+
   const body = await req.json();
   const code: string = body?.code ?? "";
   const language: string = body?.language ?? "python";
@@ -85,7 +87,7 @@ export async function POST(
       language: language as any,
       status: pass ? "PASSED" : "FAILED",
       isCorrect: pass,
-      feedback: results.map(r => `${r.pass ? "✔" : "✖"} ${r.message}`).join("\n"),
+      feedback: results.map((r) => `${r.pass ? "✔" : "✖"} ${r.message}`).join("\n"),
     },
   });
 
