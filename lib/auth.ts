@@ -137,32 +137,51 @@ export const authOptions: NextAuthOptions = {
             .toString()
             .trim()
             .toLowerCase();
-
           log("callback.signIn:google", { email });
 
           if (!email) {
             warn("callback.signIn:google:no-email");
-            return false; // aborta OAuth si algo viene mal
+            return false;
           }
 
-          // ¿El usuario ya existe?
+          // ¿Ya existe?
           const existing = await prisma.user.findUnique({
             where: { email },
-            select: { id: true, role: true },
+            select: { id: true },
           });
 
           if (!existing) {
-            // Usuario nuevo → deja que NextAuth cree la sesión
-            // y maneja el redireccionamiento en la UI/guard del dashboard.
-            log("callback.signIn:new-google-user (no redirect here)", { email });
+            // Crear usuario con valores seguros por defecto
+            try {
+              await prisma.user.create({
+                data: {
+                  email,
+                  name: profile?.name ?? user?.name ?? null,
+                  // Asegúrate de que Role.STUDENT exista en tu enum
+                  role: "STUDENT",
+                  avatarUrl:
+                    (profile as any)?.picture ??
+                    (user as any)?.image ??
+                    null,
+                },
+              });
+              log("callback.signIn:created-user", { email });
+            } catch (e: any) {
+              // Si otro proceso lo creó a la vez, ignoramos P2002 (unique)
+              if (e?.code !== "P2002") {
+                errlog("callback.signIn:create-user-failed", e);
+                return false;
+              }
+            }
 
-            // (Opcional, suave) si quieres dejar una pista para la UI:
-            // try { cookies().set("cf_needs_onboarding", "1", { path: "/", maxAge: 600 }); } catch {}
+            // Nuevo usuario → redirigir al selector de rol
+            log("callback.signIn:new-google-user → /onboarding/role", { email });
+            return "/onboarding/role";
           }
         }
 
         log("callback.signIn:ok");
-        return true; // **Clave:** permitir que la sesión se cree y finalice el OAuth
+        return true;
       } catch (e) {
         errlog("callback.signIn:error", e);
         return false;
