@@ -1,24 +1,24 @@
 import { headers } from "next/headers";
 import GroupClient from "./GroupClient";
 
-type ParamsPromiseOrObj =
-  | { params: Promise<{ id: string }> }
-  | { params: { id: string } };
+// En Next 15, el tipo oficial de `params` es una Promise<...>
+type Ctx = {
+  params: Promise<{ id: string }>;
+  // (opcional) si usas search params en algún momento:
+  // searchParams?: Promise<Record<string, string | string[]>> | Record<string, string | string[]>;
+};
 
-export default async function Page(input: ParamsPromiseOrObj) {
-  // Next 15: params puede ser Promesa => desempaquetamos seguro
-  const raw =
-    "then" in (input as any)
-      ? await (input as { params: Promise<{ id: string }> }).params
-      : (input as { params: { id: string } }).params;
-
-  const id = raw.id;
+export default async function Page(ctx: Ctx) {
+  // Desempaquetamos la promesa de params (Next 15)
+  const { id } = await ctx.params;
 
   const h = await headers();
   const cookie = h.get("cookie") ?? "";
 
   const api = (p: string) =>
-    process.env.NEXT_PUBLIC_BASE_URL ? `${process.env.NEXT_PUBLIC_BASE_URL}${p}` : p;
+    process.env.NEXT_PUBLIC_BASE_URL
+      ? `${process.env.NEXT_PUBLIC_BASE_URL}${p}`
+      : p;
 
   const [groupRes, membersRes, sessionRes] = await Promise.all([
     fetch(api(`/api/groups/${id}`), { headers: { cookie }, cache: "no-store" }),
