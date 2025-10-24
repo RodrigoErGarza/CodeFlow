@@ -9,6 +9,11 @@ import { getServerSession } from "next-auth";
 import { Role } from "@prisma/client";
 const bcrypt = require("bcrypt");
 
+// --- Helpers de logging (no intrusivos) ---
+const log = (...args: any[]) => console.log("[auth]", ...args);
+const warn = (...args: any[]) => console.warn("[auth]", ...args);
+const errlog = (...args: any[]) => console.error("[auth]", ...args);
+
 declare module "next-auth" {
   interface Session {
     user: {
@@ -22,17 +27,50 @@ declare module "next-auth" {
 }
 declare module "next-auth/jwt" {
   interface JWT {
-    /** Usa opcional para evitar conflicto con otras declaraciones */
     id?: string;
     role?: Role;
     avatarUrl?: string | null;
   }
 }
 
-
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
+  debug: true, // trazas de NextAuth en logs
+
+  logger: {
+    error(code, ...meta) {
+      errlog("logger.error", code, ...meta);
+    },
+    warn(code, ...meta) {
+      warn("logger.warn", code, ...meta);
+    },
+    debug(code, ...meta) {
+      log("logger.debug", code, ...meta);
+    },
+  },
+
+  // Nota: algunas versiones de tipos no incluyen `error` dentro de `events`,
+  // por eso no lo declaramos aquí y usamos `logger.error` para errores.
+  events: {
+    async signIn(message: any) {
+      log("event.signIn", {
+        provider: message?.account?.provider,
+        userId: message?.user?.id,
+        email: message?.user?.email,
+        isNewUser: message?.isNewUser,
+      });
+    },
+    async signOut(message: any) {
+      log("event.signOut", { session: !!message?.session });
+    },
+    async createUser(message: any) {
+      log("event.createUser", { userId: message?.user?.id, email: message?.user?.email });
+    },
+    async linkAccount(message: any) {
+      log("event.linkAccount", { userId: message?.user?.id, provider: message?.account?.provider });
+    },
+  },
 
   providers: [
     GoogleProvider({
@@ -48,23 +86,39 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Contraseña", type: "password" },
       },
       async authorize(creds) {
-        const email = creds?.email?.trim().toLowerCase();
-        const password = creds?.password;
-        if (!email || !password) return null;
+        try {
+          const email = creds?.email?.trim().toLowerCase();
+          const password = creds?.password;
+          log("credentials.authorize:start", { email });
 
-        const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || !user.passwordHash) return null;
+          if (!email || !password) {
+            warn("credentials.authorize:missing-fields");
+            return null;
+          }
 
-        const ok = await bcrypt.compare(password, user.passwordHash);
-        if (!ok) return null;
+          const user = await prisma.user.findUnique({ where: { email } });
+          if (!user || !user.passwordHash) {
+            warn("credentials.authorize:user-not-found-or-no-hash", { email });
+            return null;
+          }
 
-        return { id: user.id, email: user.email, name: user.name } as any;
+          const ok = await bcrypt.compare(password, user.passwordHash);
+          if (!ok) {
+            warn("credentials.authorize:bad-password", { email });
+            return null;
+          }
+
+          log("credentials.authorize:success", { userId: user.id });
+          return { id: user.id, email: user.email, name: user.name } as any;
+        } catch (e) {
+          errlog("credentials.authorize:error", e);
+          return null; // nunca romper el flujo
+        }
       },
     }),
   ],
 
   callbacks: {
-    // Redirecciones seguras
     async redirect({ url, baseUrl }) {
       try {
         const u = new URL(url);
@@ -76,106 +130,117 @@ export const authOptions: NextAuthOptions = {
       }
     },
 
-    /**
-     * SOLO nuevos con Google → ir a /onboarding/role
-     * Usuarios existentes → continuar normal (no pedir rol otra vez)
-     */
     async signIn({ user, account, profile }) {
-      if (account?.provider === "google") {
-        const email =
-          (profile?.email || user?.email || "").toString().trim().toLowerCase();
-        if (!email) return false; // algo raro, no seguimos
+      try {
+        if (account?.provider === "google") {
+          const email = (profile?.email || user?.email || "").toString().trim().toLowerCase();
+          log("callback.signIn:google", { email });
 
-        const existing = await prisma.user.findUnique({
-          where: { email },
-          select: { id: true }, // basta saber si existe
-        });
+          if (!email) {
+            warn("callback.signIn:google:no-email");
+            return false;
+          }
 
-        if (!existing) {
-          // Nuevo usuario → deja firmar y llévalo al role picker
-          return "/onboarding/role";
+          const existing = await prisma.user.findUnique({
+            where: { email },
+            select: { id: true },
+          });
+
+          if (!existing) {
+            log("callback.signIn:new-google-user → /onboarding/role", { email });
+            return "/onboarding/role";
+          }
         }
+        log("callback.signIn:ok");
+        return true;
+      } catch (e) {
+        errlog("callback.signIn:error", e);
+        return false;
       }
-      return true;
     },
 
-    /**
-     * JWT: inyecta id/rol/avatar. Prioriza lo que haya en BD si existe.
-     * Usa avatar de BD si lo hay; si no, el de Google; si no, deja null.
-     */
-    async jwt({ token, user, profile, account }) {
-      // Normaliza email en token si existe
-      if (user?.email) user.email = user.email.trim().toLowerCase();
-      if (token?.email) token.email = (token.email as string).trim().toLowerCase();
+    async jwt({ token, user, profile }) {
+      try {
+        if (user?.email) user.email = user.email.trim().toLowerCase();
+        if (token?.email) token.email = (token.email as string).trim().toLowerCase();
 
-      // Carga desde BD por email si se puede, si no por id (sub)
-      const email = (user?.email ?? token?.email) as string | undefined;
-      let dbUser:
-        | { id: string; role: Role; avatarUrl: string | null }
-        | null = null;
+        const email = (user?.email ?? token?.email) as string | undefined;
+        let dbUser: { id: string; role: Role; avatarUrl: string | null } | null = null;
 
-      if (email) {
-        dbUser = await prisma.user.findUnique({
-          where: { email },
-          select: { id: true, role: true, avatarUrl: true },
-        });
+        if (email) {
+          dbUser = await prisma.user.findUnique({
+            where: { email },
+            select: { id: true, role: true, avatarUrl: true },
+          });
+        }
+        if (!dbUser && token?.sub) {
+          dbUser = await prisma.user.findUnique({
+            where: { id: token.sub as string },
+            select: { id: true, role: true, avatarUrl: true },
+          });
+        }
+
+        if (dbUser) {
+          (token as any).id = dbUser.id;
+          (token as any).role = dbUser.role;
+          (token as any).avatarUrl =
+            dbUser.avatarUrl ??
+            (profile as any)?.picture ??
+            (user as any)?.image ??
+            (token as any).avatarUrl ??
+            null;
+
+          token.sub = dbUser.id;
+          log("callback.jwt:dbUser", { userId: dbUser.id, role: dbUser.role });
+        } else {
+          (token as any).id = (token as any).id ?? token.sub;
+          if ((token as any).role == null) (token as any).role = "STUDENT";
+          (token as any).avatarUrl =
+            (profile as any)?.picture ??
+            (user as any)?.image ??
+            (token as any).avatarUrl ??
+            null;
+
+          log("callback.jwt:no-dbUser → defaults", {
+            id: (token as any).id,
+            role: (token as any).role,
+          });
+        }
+
+        return token;
+      } catch (e) {
+        errlog("callback.jwt:error", e);
+        return token;
       }
-      if (!dbUser && token?.sub) {
-        dbUser = await prisma.user.findUnique({
-          where: { id: token.sub as string },
-          select: { id: true, role: true, avatarUrl: true },
-        });
-      }
-
-      if (dbUser) {
-        token.sub = dbUser.id;
-        (token as any).id = dbUser.id;
-        (token as any).role = dbUser.role;
-        (token as any).avatarUrl =
-          dbUser.avatarUrl ??
-          (profile as any)?.picture ??
-          (user as any)?.image ??
-          (token as any).avatarUrl ??
-          null;
-      } else {
-        // nuevo o inconsistente: asegura defaults sin forzar cambio a student si ya hay rol
-        (token as any).id = (token as any).id ?? token.sub;
-        if ((token as any).role == null) (token as any).role = "STUDENT";
-        (token as any).avatarUrl =
-          (profile as any)?.picture ??
-          (user as any)?.image ??
-          (token as any).avatarUrl ??
-          null;
-      }
-
-      return token;
     },
 
-    /**
-     * Session: refresca SIEMPRE rol y avatar desde BD para que Sidebar
-     * vea la foto actual del perfil. Si no hay avatar en BD, usa el del token (Google).
-     */
     async session({ session, token }) {
-      if (token?.sub) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.sub as string },
-          select: { role: true, avatarUrl: true },
-        });
+      try {
+        if (token?.sub) {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.sub as string },
+            select: { role: true, avatarUrl: true },
+          });
 
-        (session.user as any).id = token.sub;
-        (session.user as any).role = dbUser?.role ?? (token as any).role ?? "STUDENT";
-        (session.user as any).avatarUrl =
-          dbUser?.avatarUrl ??
-          (token as any).avatarUrl ??
-          (session.user as any).image ??
-          null;
+          (session.user as any).id = token.sub;
+          (session.user as any).role = dbUser?.role ?? (token as any).role ?? "STUDENT";
+          (session.user as any).avatarUrl =
+            dbUser?.avatarUrl ?? (token as any).avatarUrl ?? (session.user as any).image ?? null;
+
+          log("callback.session", {
+            userId: token.sub,
+            role: (session.user as any).role,
+          });
+        }
+        return session;
+      } catch (e) {
+        errlog("callback.session:error", e);
+        return session;
       }
-      return session;
     },
   },
 
   secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
-
 };
 
 // Helper
