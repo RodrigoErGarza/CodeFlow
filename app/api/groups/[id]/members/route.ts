@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
+// app/api/groups/[id]/members/route.ts   ← usa "members" si ese es tu folder
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
-  const id = params.id;
+// En Next 15, `params` llega como Promise y hay que esperarlo.
+type Ctx = { params: Promise<{ id: string }> };
+
+export async function GET(_req: NextRequest, { params }: Ctx) {
+  const { id } = await params; // 👈 await obligatorio
 
   const g = await prisma.group.findUnique({
     where: { id },
@@ -29,14 +30,12 @@ export async function GET(
 
   if (!g) return NextResponse.json({ members: [] });
 
-  // Mapea a un DTO sencillo
   const list = g.members.map(m => ({
     id: m.id,
-    role: m.role, // "TEACHER" | "STUDENT"
-    user: m.user, // { id, name, username, avatarUrl, role }
+    role: m.role,
+    user: m.user,
   }));
 
-  // Si por alguna razón el creador no aparece como TEACHER, lo agregamos en memoria
   const hasCreator = list.some(m => m.user.id === g.createdBy.id);
   if (!hasCreator) {
     list.unshift({
