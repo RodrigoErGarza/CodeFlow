@@ -1,7 +1,10 @@
 // app/onboarding/role/page.tsx
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+
 
 export default function RolePickerPage() {
+  const router = useRouter();
   return (
     <main className="min-h-dvh grid place-items-center px-6 text-white">
       <div className="w-full max-w-md space-y-6">
@@ -11,19 +14,12 @@ export default function RolePickerPage() {
         </p>
 
         <div className="grid gap-3">
-          <Link
-            href="/onboarding/google-complete?role=STUDENT"
-            className="w-full rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-3 text-center"
-          >
+           <button onClick={() => router.push("/onboarding/google-complete?role=STUDENT")}>
             Soy estudiante
-          </Link>
-
-          <Link
-            href="/onboarding/google-complete?role=TEACHER"
-            className="w-full rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-3 text-center"
-          >
+          </button>
+          <button onClick={() => router.push("/onboarding/google-complete?role=TEACHER")}>
             Soy profesor
-          </Link>
+          </button>
         </div>
 
         <p className="opacity-60 text-xs">

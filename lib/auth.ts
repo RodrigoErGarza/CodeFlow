@@ -72,6 +72,11 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
+  pages: {
+    // Cuando Google crea un usuario por primera vez, NextAuth lo mandará aquí
+    newUser: "/onboarding/role",
+  },
+
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -129,65 +134,18 @@ export const authOptions: NextAuthOptions = {
         return baseUrl;
       }
     },
-
     async signIn({ user, account, profile }) {
-      try {
-        if (account?.provider === "google") {
-          const email = (profile?.email || user?.email || "")
-            .toString()
-            .trim()
-            .toLowerCase();
-          log("callback.signIn:google", { email });
-
-          if (!email) {
-            warn("callback.signIn:google:no-email");
-            return false;
-          }
-
-          // ¿Ya existe?
-          const existing = await prisma.user.findUnique({
-            where: { email },
-            select: { id: true },
-          });
-
-          if (!existing) {
-            // Crear usuario con valores seguros por defecto
-            try {
-              await prisma.user.create({
-                data: {
-                  email,
-                  name: profile?.name ?? user?.name ?? null,
-                  // Asegúrate de que Role.STUDENT exista en tu enum
-                  role: "STUDENT",
-                  avatarUrl:
-                    (profile as any)?.picture ??
-                    (user as any)?.image ??
-                    null,
-                },
-              });
-              log("callback.signIn:created-user", { email });
-            } catch (e: any) {
-              // Si otro proceso lo creó a la vez, ignoramos P2002 (unique)
-              if (e?.code !== "P2002") {
-                errlog("callback.signIn:create-user-failed", e);
-                return false;
-              }
-            }
-
-            // Nuevo usuario → redirigir al selector de rol
-            log("callback.signIn:new-google-user → /onboarding/role", { email });
-            return "/onboarding/role";
-          }
-        }
-
-        log("callback.signIn:ok");
-        return true;
-      } catch (e) {
-        errlog("callback.signIn:error", e);
-        return false;
+      // Si falta email en Google, sí rechazamos (raro, pero pasa)
+      if (account?.provider === "google") {
+        const email = (profile?.email || user?.email || "").toString().trim().toLowerCase();
+        if (!email) return false;
       }
+      // De lo contrario, siempre true. El PrismaAdapter se encarga de crear/enlazar.
+      // Si el usuario es nuevo, NextAuth usará pages.newUser automáticamente.
+      return true;
     },
 
+    
     async jwt({ token, user, profile }) {
       try {
         if (user?.email) user.email = user.email.trim().toLowerCase();
