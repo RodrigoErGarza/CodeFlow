@@ -1,26 +1,35 @@
-// app/onboarding/google-complete/route.ts
-import { NextRequest, NextResponse } from "next/server";
+// app/onboarding/google-complete/page.tsx
+import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export const dynamic = "force-dynamic"; // garantiza que no se cachee
+const ROLES = ["STUDENT", "TEACHER"] as const;
 
-export async function GET(req: NextRequest) {
+type Search = { role?: string | string[] };
+
+export default async function GoogleCompletePage({
+  searchParams,
+}: {
+  // En Next 15 puede ser Promise
+  searchParams: Promise<Search>;
+}) {
+  const sp = await searchParams; // ← importante
   const session = await getServerSession(authOptions);
-
   if (!session?.user?.id) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    redirect("/login");
   }
 
-  const role = (req.nextUrl.searchParams.get("role") || "").toUpperCase();
+  // role puede venir como string o string[]
+  const roleParam = Array.isArray(sp.role) ? sp.role[0] : sp.role;
+  const role = (roleParam ?? "").toUpperCase();
 
-  if (role === "STUDENT" || role === "TEACHER") {
+  if (ROLES.includes(role as any)) {
     await prisma.user.update({
       where: { id: session.user.id },
       data: { role: role as any },
     });
   }
 
-  return NextResponse.redirect(new URL("/dashboard", req.url));
+  redirect("/dashboard");
 }
