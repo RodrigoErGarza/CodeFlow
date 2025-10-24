@@ -1,22 +1,26 @@
+// app/p/[id]/page.tsx
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import FlowCanvas, { type FlowGraph } from "@/app/components/FlowCanvas";
 import { layoutWithELK } from "@/lib/elk";
 import Link from "next/link";
+import { getParams, type Ctx } from "@/lib/route";
 
 /**
  * Vista pública del DIAGRAMA de un snippet (solo lectura)
  * Ruta: /p/:id
  *
  * Requisitos:
- * - El snippet debe tener isPublic = true (puedes alternarlo desde tu editor/BD).
- * - NEXTAUTH_URL configurado en .env para llamadas internas en SSR (dev):
- *   NEXTAUTH_URL="http://localhost:3000"
+ * - El snippet debe tener isPublic = true.
+ * - NEXTAUTH_URL configurado para SSR si lo necesitas en local.
  */
-export default async function PublicDiagramPage({ params }: { params: { id: string } }) {
+export default async function PublicDiagramPage(ctx: Ctx<{ id: string }>) {
+  // Next 15: params es una Promise
+  const { id } = await getParams(ctx);
+
   // 1) Traer snippet público (código + lenguaje)
   const snippet = await prisma.snippet.findFirst({
-    where: { id: params.id, isPublic: true, deletedAt: null },
+    where: { id, isPublic: true, deletedAt: null },
     select: { id: true, title: true, language: true, code: true, updatedAt: true },
   });
   if (!snippet) return notFound();
