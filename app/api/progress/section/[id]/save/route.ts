@@ -1,21 +1,19 @@
-// app/api/progress/section/[id]/save/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserIdOrThrow } from "@/lib/auth";
+import { Ctx, getParams } from "@/lib/route";
 
-export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: NextRequest, ctx: Ctx<{ id: string }>) {
   try {
     const userId = await getUserIdOrThrow();
-    const sectionId = params.id;
+    const { id } = await getParams(ctx);         // 👈 params async
+    const sectionId = id;
 
     const body = await req.json().catch(() => ({}));
-    const answers: Record<string, string> = body?.answers || {}; // {questionId: optionId}
-    const sectionIdx: number = typeof body?.sectionIdx === "number" ? body.sectionIdx : 0;
+    const answers: Record<string, string> = body?.answers || {};
+    const sectionIdx: number =
+      typeof body?.sectionIdx === "number" ? body.sectionIdx : 0;
 
-    // necesitamos unitId
     const section = await prisma.section.findUnique({
       where: { id: sectionId },
       include: { unit: true, questions: { select: { id: true } } },
@@ -45,7 +43,12 @@ export async function POST(
     await prisma.userUnitProgress.upsert({
       where: { userId_unitId: { userId, unitId: section.unitId } },
       update: { currentSectionIdx: sectionIdx },
-      create: { userId, unitId: section.unitId, percent: 0, currentSectionIdx: sectionIdx },
+      create: {
+        userId,
+        unitId: section.unitId,
+        percent: 0,
+        currentSectionIdx: sectionIdx,
+      },
     });
 
     return NextResponse.json({ ok: true });

@@ -1,18 +1,17 @@
-// app/api/units/[slug]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserIdOrThrow } from "@/lib/auth";
+import type { Ctx } from "@/lib/route";
+import { getParams } from "@/lib/route";
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { slug: string } }
-) {
-  const { slug } = params;
+export async function GET(_req: NextRequest, ctx: Ctx<{ slug: string }>) {
+  const { slug } = await getParams(ctx);
+
   try {
     const userId = await getUserIdOrThrow();
 
     const unit = await prisma.unit.findUnique({
-      where: { slug: params.slug },
+      where: { slug },
       include: {
         sections: {
           orderBy: { index: "asc" },
@@ -34,12 +33,10 @@ export async function GET(
 
     if (!unit) return NextResponse.json({ error: "Unit not found" }, { status: 404 });
 
-    // progreso y sección actual
     const uup = await prisma.userUnitProgress.findUnique({
       where: { userId_unitId: { userId, unitId: unit.id } },
     });
 
-    // respuestas guardadas del usuario para todas las preguntas de la unidad
     const allQuestionIds = unit.sections.flatMap(s => s.questions.map(q => q.id));
     const answers = await prisma.userAnswer.findMany({
       where: { userId, questionId: { in: allQuestionIds } },
@@ -53,7 +50,7 @@ export async function GET(
       unit,
       percent: uup?.percent ?? 0,
       currentSectionIdx: uup?.currentSectionIdx ?? 0,
-      prefill, // { questionId: optionId }
+      prefill,
     });
   } catch (e) {
     console.error(e);

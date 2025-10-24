@@ -1,15 +1,13 @@
-// app/api/progress/section/[id]/check/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserIdOrThrow } from "@/lib/auth";
+import { Ctx, getParams } from "@/lib/route";
 
-export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: NextRequest, ctx: Ctx<{ id: string }>) {
   try {
     const userId = await getUserIdOrThrow();
-    const sectionId = params.id;
+    const { id } = await getParams(ctx);         // 👈 params async
+    const sectionId = id;
 
     const body = await req.json().catch(() => ({}));
     const answers: Record<string, string> = body?.answers || {};
@@ -18,9 +16,7 @@ export async function POST(
       where: { id: sectionId },
       include: {
         unit: { include: { sections: { select: { id: true } } } },
-        questions: {
-          select: { id: true, answerKey: true }, // aquí sí usamos answerKey
-        },
+        questions: { select: { id: true, answerKey: true } },
       },
     });
     if (!section) {
@@ -37,7 +33,7 @@ export async function POST(
       if (!correct) allCorrect = false;
     }
 
-    // Si quieres: guardar estas respuestas también (por si el usuario no dio "guardar")
+    // Guardar respuestas del usuario
     await Promise.all(
       Object.entries(answers).map(([questionId, optionId]) =>
         prisma.userAnswer.upsert({
@@ -56,14 +52,12 @@ export async function POST(
 
     let percent = 0;
     if (allCorrect) {
-      // Sección completada
       await prisma.userSectionProgress.upsert({
         where: { userId_sectionId: { userId, sectionId } },
         update: { completed: true },
         create: { userId, sectionId, completed: true },
       });
 
-      // Recalcular % = (#secciones completadas) / (total) * 100
       const total = section.unit.sections.length;
       const completedCount = await prisma.userSectionProgress.count({
         where: {

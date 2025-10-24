@@ -2,12 +2,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
+import type { Ctx } from "@/lib/route";
+import { getParams } from "@/lib/route";
 
-// Type helper para el nuevo contexto en Next 15
-type Ctx = { params: Promise<{ id: string }> };
-
-export async function GET(_req: NextRequest, { params }: Ctx) {
-  const { id } = await params;
+export async function GET(_req: NextRequest, ctx: Ctx<{ id: string }>) {
+  const { id } = await getParams(ctx);
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) {
@@ -16,9 +15,10 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   return NextResponse.json(user);
 }
 
-export async function PUT(req: NextRequest, { params }: Ctx) {
-  const { id } = await params;
+export async function PUT(req: NextRequest, ctx: Ctx<{ id: string }>) {
+  const { id } = await getParams(ctx);
   const body = await req.json();
+
   const { name, email, role } = body as {
     name?: string;
     email?: string;
@@ -38,8 +38,8 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   return NextResponse.json(updated);
 }
 
-export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  const { id } = await params;
+export async function DELETE(_req: NextRequest, ctx: Ctx<{ id: string }>) {
+  const { id } = await getParams(ctx);
   await prisma.user.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
