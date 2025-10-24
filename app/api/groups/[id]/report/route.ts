@@ -1,12 +1,13 @@
 // app/api/groups/[id]/report/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
-  const groupId = params.id;
+// En Next 15 el 2º argumento es una Promise que hay que await.
+type Ctx = { params: Promise<{ id: string }> };
+
+export async function GET(_req: NextRequest, { params }: Ctx) {
+  const { id } = await params;            // 👈 await obligatorio
+  const groupId = id;
 
   // Grupo + miembros
   const group = await prisma.group.findUnique({
@@ -14,7 +15,9 @@ export async function GET(
     include: {
       members: {
         include: {
-          user: { select: { id: true, name: true, username: true, avatarUrl: true, role: true } },
+          user: {
+            select: { id: true, name: true, username: true, avatarUrl: true, role: true },
+          },
         },
       },
     },
@@ -36,7 +39,8 @@ export async function GET(
     progressByUser.length === 0
       ? 0
       : Math.round(
-          (progressByUser.reduce((a, b) => a + (b._avg.percent ?? 0), 0) / progressByUser.length) * 10
+          (progressByUser.reduce((a, b) => a + (b._avg.percent ?? 0), 0) / progressByUser.length) *
+            10
         ) / 10;
 
   // Intentos aprobados por estudiante
@@ -54,7 +58,7 @@ export async function GET(
     select: { createdAt: true },
     orderBy: { createdAt: "asc" },
   });
-  // agrega por día
+
   const byDay = new Map<string, number>();
   for (const r of recentPasses) {
     const key = r.createdAt.toISOString().slice(0, 10);
