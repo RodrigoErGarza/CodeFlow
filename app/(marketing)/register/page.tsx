@@ -134,7 +134,7 @@ export default function RegisterPage() {
 
         <button
           type="button"
-          onClick={() => signIn("google", { callbackUrl: `/onboarding/google-complete?role=${form.role}`, })}
+          onClick={() => signIn("google")} // sin callbackUrl
           className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition"
         >
           {/* mismo ícono que usaste en login */}
