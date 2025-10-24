@@ -6,10 +6,14 @@ import { prisma } from "@/lib/prisma";
 
 const ROLES = ["STUDENT", "TEACHER"] as const;
 
-export default async function GoogleCompletePage({
-  searchParams,
-}: { searchParams: { role?: string } }) {
+type Ctx = {
+  searchParams: Promise<{ role?: string | undefined }>;
+};
+
+export default async function GoogleCompletePage(ctx: Ctx) {
+  const searchParams = await ctx.searchParams;
   const session = await getServerSession(authOptions);
+
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -21,6 +25,7 @@ export default async function GoogleCompletePage({
       data: { role: role as any },
     });
   }
+
   // listo, al dashboard
   redirect("/dashboard");
 }
