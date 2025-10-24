@@ -1,36 +1,37 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { Ctx, getParams } from "@/lib/route";
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, ctx: Ctx<{ id: string }>) {
+  const { id } = await getParams(ctx);
+
   const group = await prisma.group.findUnique({
-    where: { id: params.id },
+    where: { id },
     select: { id: true, name: true, joinCode: true, createdById: true },
   });
   if (!group) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(group);
 }
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(_req: NextRequest, ctx: Ctx<{ id: string }>) {
+  const { id } = await getParams(ctx);
+
   try {
     const session = await getServerSession(authOptions as any);
     const userId = (session as any)?.user?.id;
     if (!userId) return NextResponse.json({ error: "No auth" }, { status: 401 });
 
-    const group = await prisma.group.findUnique({ where: { id: params.id } });
+    const group = await prisma.group.findUnique({ where: { id } });
     if (!group) return NextResponse.json({ error: "Grupo no existe" }, { status: 404 });
 
     if (group.createdById !== userId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    // Si tus relaciones no tienen cascade, borra miembros primero
-    await prisma.groupMember.deleteMany({ where: { groupId: params.id } });
-    await prisma.group.delete({ where: { id: params.id } });
+    await prisma.groupMember.deleteMany({ where: { groupId: id } });
+    await prisma.group.delete({ where: { id } });
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {
